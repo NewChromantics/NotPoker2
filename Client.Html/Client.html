@@ -1,0 +1,255 @@
+<html>
+	<head>
+		
+		<style>
+			html
+			{
+				background:	#eee;
+			}
+			
+			body
+			{
+				display:	grid;
+			}
+			
+			#GameContainer
+			{
+				margin:		3em;
+				padding:	3em;
+				background:	#333;
+				color:		#eee;
+				border-radius:	1em;
+			}
+			
+			
+		</style>
+		
+	</head>
+	
+	<body>
+		
+		<div id=GameContainer></div>
+		
+		<script type=module>
+			
+			import {PromiseQueue,CreatePromise} from '../Games/PromiseQueue.js'
+
+			//	server
+			import Minesweeper from '../Games/Minesweeper.js'
+			
+			//	client
+			import GameElement_Debug from './GameElement_Debug.js'
+			
+			
+			class LobbyApi
+			{
+				//	returns Player UID
+				async AuthorisePlayer(PlayerName)
+				{
+					return `${PlayerName}_UID`;
+				}
+			}
+			
+			class LocalServerInterface
+			{
+				#Server_Game;	//	current game instance
+				#Server_PendingPlayerActions = {};	//	[PlayerUid] = Promise waiting to be fulfilled
+				
+				//	for multi local players, this needs to be a queue per client
+				#Client_StateChangedQueue = new PromiseQueue('Client_StateChangedQueue');
+				#Client_PlayerUid;
+				
+				async Client_WaitForNextState()
+				{
+					return await this.#Client_StateChangedQueue.WaitForNext();
+				}
+				
+				async Client_Connect(PlayerUid)
+				{
+					if ( !this.#Server_Game )
+						throw `No game running`;
+						
+					if ( !PlayerUid )
+						throw `Connect without player uid`;
+						
+					if ( this.#Client_PlayerUid )
+						throw `Local player is already registered (${this.#Client_PlayerUid})`;
+						
+					const Result = await this.#Server_Game.AddPlayer(PlayerUid);
+					
+					//	set only if successfully joined
+					this.#Client_PlayerUid = PlayerUid;
+					return Result;
+				}
+				
+				Client_SendActionReply(Action,ActionArguments)
+				{
+					const Reply = {};
+					Reply.Action = Action;
+					Reply.ActionArguments = ActionArguments;
+					
+					const PlayerUid = this.#Client_PlayerUid;
+					if ( !this.#Server_PendingPlayerActions.hasOwnProperty(PlayerUid) )
+					{
+						throw `There's no pending player action`;
+					}
+					this.#Server_PendingPlayerActions[PlayerUid].Resolve( Reply );
+				}
+				
+				
+				async Server_SetGame(Game)
+				{
+					this.#Server_Game = Game;
+				}
+				
+				
+				async Server_SendMoveAndWait(PlayerUid,Move)
+				{
+					//return await Room.SendToPlayerAndWaitForReply('Move', Player, Move );
+					if ( this.#Server_PendingPlayerActions.hasOwnProperty(PlayerUid) )
+					{
+						throw `There's already a pending promise for player ${PlayerUid} for new action`;
+					}
+					
+					const NewPromise = CreatePromise();
+					this.#Server_PendingPlayerActions[PlayerUid] = NewPromise;
+					
+					//	notify player they have something to do (+state?)
+					this.#Client_StateChangedQueue.Push(Move);
+					
+					//	wait for reply
+					const Reply = await NewPromise;
+					
+					//	clear promise
+					delete this.#Server_PendingPlayerActions[PlayerUid];
+					
+					return Reply;
+				}
+				
+				async Server_BroadcastState(State)
+				{
+					//Room.SendToAllPlayers('State',State);
+					this.#Client_StateChangedQueue.Push(State);
+				}
+				
+				async Server_OnAction(Action)
+				{
+					this.#Client_StateChangedQueue.Push(Action);
+				}
+			}
+
+
+			const Lobby = new LobbyApi();
+			const LocalServerInstance = new LocalServerInterface();
+			
+			
+			function OnServerLog(Message)
+			{
+				console.warn(`Server: ${Message}`);
+			}
+			function OnServerError(Message)
+			{
+				console.error(`Server Error: ${Message}`);
+			}
+			
+			
+			
+			//	boot a game server
+			async function RunGameServer(LocalServer,OnLog,OnError)
+			{
+				while ( true )
+				{
+					let Game = new Minesweeper(OnLog);
+					LocalServer.Server_SetGame( Game );
+					
+					function OnStateChanged()
+					{
+						const State = Game.GetPublicState();
+						LocalServer.Server_BroadcastState.call( LocalServer, State );
+					}
+					
+					const SendMoveAndWait = LocalServer.Server_SendMoveAndWait.bind(LocalServer);
+					const OnAction = LocalServer.Server_OnAction.bind(LocalServer);
+					
+					const GameResult = await Game.RunGame( SendMoveAndWait, OnStateChanged, OnAction );
+					
+					OnLog(GameResult);
+					LocalServer.Server_SetGame( null );
+					await Yield(1*1000);
+				}
+			}
+			RunGameServer(LocalServerInstance,OnServerLog,OnServerError).catch(OnServerError);
+			
+			
+			
+			function GetGameElementType(GameType)
+			{
+				switch ( GameType )
+				{
+					default:
+					return GameElement_Debug.ElementName;
+				}
+			}
+					
+			
+			
+			//	boot a client
+			async function RunClient(GameContainerDiv,LocalServer)
+			{
+				const PlayerUid = await Lobby.AuthorisePlayer(`Zaphod`);
+				
+				let GameElement = null;
+				
+				//	connect to the server
+				while ( true )
+				{
+					//	connect
+					await LocalServer.Client_Connect(PlayerUid);
+					
+					//	now just keep getting new states
+					while ( true )
+					{
+						const NewState = await LocalServer.Client_WaitForNextState();
+						
+						//	if this state's game type doesn't match our current game's webcomponent type
+						//	then we need to recreate it
+						if ( NewState.GameType == null )
+						{
+							console.warn(`Warning, state without .GameType`,NewState);
+						}
+						else if ( !GameElement || GameElement.GameType != NewState.GameType )
+						{
+							GameElement?.remove();
+							GameElement = null;
+
+							GameElement = document.createElement( GetGameElementType(NewState.GameType) );
+							GameContainerDiv.appendChild(GameElement);
+						}
+						
+						//	this is new actions, rather than new state
+						if ( NewState.Actions || NewState.BadMove )
+						{
+							const Action = NewState;
+							const ActionForThisPlayer = ( Action.Player == PlayerUid );
+							const Reply = await GameElement.SetAction( Action, ActionForThisPlayer );
+							
+							if ( Reply )
+								LocalServer.Client_SendActionReply( Reply.Action, Reply.ActionArguments );
+
+							//	any action will execute and loop around for a new state
+						}
+						else
+						{
+							//	update state of element and wait for it to finish
+							await GameElement.SetState(NewState);
+						}
+						
+					}
+				}
+			}
+			const GameContainerDiv = document.querySelector(`#GameContainer`);
+			RunClient(GameContainerDiv,LocalServerInstance).catch( console.error );
+		</script>
+	</body>
+</html>
+
