@@ -18,6 +18,13 @@ const DebugElementCss=
 		font: monospace, "Courier New";
 		font-size:	0.8em;
 		opacity: 0.5;
+		display:	none;
+	}
+
+	label
+	{
+		font-style:	italic;
+		font-size:	0.8em;
 	}
 
 	*
@@ -33,6 +40,11 @@ const DebugElementCss=
 	{
 		font-size:	1.5em;
 		border-bottom:	1px solid #eee;
+	}
+
+	.StateItem label
+	{
+		display:	block;
 	}
 
 	#Actions > .Action
@@ -120,6 +132,24 @@ export default class GameElement_Debug extends GameElement_Base
 		this.#ActionsElement.appendChild(Json);
 		Json.className = 'Json';
 		Json.textContent = JSON.stringify(this.#CurrentActionMeta);
+
+		const Error = this.#CurrentActionMeta.BadMove;
+		if ( Error )
+		{
+			const ActionDiv = document.createElement('div');
+			this.#ActionsElement.appendChild(ActionDiv);
+			ActionDiv.className = 'Action';
+			
+			const Label = document.createElement('label');
+			ActionDiv.appendChild(Label);
+			Label.textContent = `Error`;
+			
+			const Body = document.createElement('span');
+			ActionDiv.appendChild(Body);
+			Body.textContent = Error;
+		}
+
+		
 		
 		//	make a button for each action
 		for ( let ActionKey in this.#CurrentActionMeta.Actions )
@@ -161,9 +191,13 @@ export default class GameElement_Debug extends GameElement_Base
 				
 				function OnClicked()
 				{
-					function GetArgumentValue(Select)
+					function GetArgumentValue(Select,ArgumentIndex)
 					{
-						const Value = Select.value;
+						//	this value will only be a string, so instead, get the original [typed] value
+						//	maybe we should do a match instead of assuming indexes match?
+						//const Value = Select.value;
+						const ArgumentValues = Arguments[ArgumentIndex];
+						const Value = ArgumentValues[Select.selectedIndex];
 						return Value;
 					}
 					const ArgumentValues = ArgumentElements.map(GetArgumentValue);
@@ -241,7 +275,8 @@ export default class GameElement_Debug extends GameElement_Base
 		//	gr: need to detect when the keys have no actions
 		//		we currently get .BadMove when there's an error. We probably should change
 		//		this so the new actions come with meta, rather than 2 steps
-		const AnyUserActions = Object.keys(Action).filter( Key => Key!='BadMove'&&Key!='Player' ).length > 0;
+		//const AnyUserActions = Object.keys(Action).filter( Key => Key!='BadMove'&&Key!='Player' ).length > 0;
+		const AnyUserActions = Object.keys(Action.Actions||{}).length > 0;
 
 		const WaitingForTrigger = ForThisPlayer && AnyUserActions;
 		this.UpdateActionElements( WaitingForTrigger ? OnActionTriggered : null );
