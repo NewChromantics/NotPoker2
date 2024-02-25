@@ -7,7 +7,7 @@ import PackageDescription
 
 
 let package = Package(
-	name: "NotPoker",
+	name: "NotPokerApi",
 	
 	platforms: [
 		.iOS(.v15),
@@ -17,18 +17,18 @@ let package = Package(
 
 	products: [
 		.library(
-			name: "NotPoker",
+			name: "NotPokerApi",
 			targets: [
-				"NotPoker"
+				"NotPokerApi"
 			]),
 	],
 	targets: [
 
 		.target(
-			name: "NotPoker",
+			name: "NotPokerApi",
 			/* include all targets where .h contents need to be accessible to swift */
 			dependencies: [/*"PopMp4Objc","PopMp4Framework"*/],
-			path: "./NotPokerSwift"
+			path: "./NotPokerApiSwift"
 		)
 	]
 )
