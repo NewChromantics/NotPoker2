@@ -1,8 +1,12 @@
-class TPickANumberGame extends TGame
+import TGame from './Game.js'
+import {Yield} from './PromiseQueue.js'
+
+
+export default class TPickANumberGame extends TGame
 {
-	constructor()
+	constructor(OnDebug)
 	{
-		super(...arguments);
+		super('PickANumber',OnDebug);
 		
 		this.State = this.InitState();
 	}

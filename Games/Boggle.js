@@ -1,3 +1,7 @@
+import TGame from './Game.js'
+import {Yield} from './PromiseQueue.js'
+import Dictionary_EnglishUK from './Boggle/Dictionary_EnglishUk.js'
+
 function CreateArrayRange(First,Last)
 {
 	const Length = Last - First;
@@ -5,13 +9,27 @@ function CreateArrayRange(First,Last)
 	return a;
 }
 
+//	shuffle in place
+export function ShuffleArray(array)
+{
+	//	https://stackoverflow.com/a/47900462/355753
+	//	this is faster than splicing
+	for (var i = array.length - 1; i > 0; i--)
+	{
+		var j = Math.floor(Math.random() * (i + 1));
+		[array[i], array[j]] = [array[j], array[i]];
+	}
+}
+
+
 class TDictionary
 {
 	constructor()
 	{
 		//	load dictionary json
-		const DictionaryJsonString = Pop.LoadFileAsString('Games/Boggle/Dictionary_EnglishUk.json');
-		const DictionaryJson = JSON.parse(DictionaryJsonString);
+		//const DictionaryJsonString = Pop.LoadFileAsString('Games/Boggle/Dictionary_EnglishUk.json');
+		//const DictionaryJson = JSON.parse(DictionaryJsonString);
+		const DictionaryJson = Dictionary_EnglishUK;
 		this.Dictionary = DictionaryJson;
 	}
 	
@@ -73,7 +91,7 @@ class TBoggleRules
 		//	todo; scale weights here? or just generate more pools...
 		if ( LetterCount > LetterPool.length )
 			throw `Alphabet pool ${LetterPool} too small for LetterCount=${LetterCount}`;
-		Pop.Array.Shuffle(LetterPool);
+		ShuffleArray(LetterPool);
 		return LetterPool.slice(0,LetterCount);
 	}
 	
@@ -96,11 +114,11 @@ class TBoggleRules
 }
 
 
-class TBoggleGame extends TGame
+export default class TBoggleGame extends TGame
 {
-	constructor()
+	constructor(OnDebug)
 	{
-		super(...arguments);
+		super('Boggle',OnDebug);
 		
 		this.Rules = new TBoggleRules();
 		this.State = this.InitState();
@@ -225,7 +243,7 @@ class TBoggleGame extends TGame
 		this.CheckMapSequence(MapSequence);
 		//	extract word
 		const Word = MapSequence.map( Index => this.State.Map[Index] ).join('');
-		Pop.Debug(`HandleMapSequence word=${Word} (type: ${typeof Word}`);
+		this.OnDebug(`HandleMapSequence word=${Word} (type: ${typeof Word}`);
 		
 		//	check word is valid
 		this.Rules.IsValidWord(Word);
@@ -246,7 +264,7 @@ class TBoggleGame extends TGame
 	{
 		while ( !this.GetWinner() )
 		{
-			await Pop.Yield(0);	//	gr: we should force this with GetCurrentPlayer or GetWinner. We need this gap to allow player changes externally
+			await Yield(0);	//	gr: we should force this with GetCurrentPlayer or GetWinner. We need this gap to allow player changes externally
 			OnStateChanged();
 			const Player = this.GetCurrentPlayer();
 			
@@ -254,7 +272,7 @@ class TBoggleGame extends TGame
 			try
 			{
 				const LetterSequence = await this.WaitPlayerPickLetterSequenceOrSkip(Player,SendMoveAndWait,OnAction);
-				Pop.Debug(`${Player} LetterSequence=${LetterSequence}`);
+				this.OnDebug(`${Player} LetterSequence=${LetterSequence}`);
 
 				OnStateChanged();
 				this.EndPlayerTurn(Player);
@@ -263,7 +281,7 @@ class TBoggleGame extends TGame
 			catch(e)
 			{
 				//	move can not be completed (eg. player left)
-				Pop.Debug(`Move not completed: ${e}`);
+				this.OnDebug(`Move not completed: ${e}`);
 				this.EndPlayerTurn(Player);
 				continue;
 			}
@@ -278,7 +296,7 @@ class TBoggleGame extends TGame
 		function TryPickMapSequence(MapSequence0)
 		{
 			const MapSequence = Array.from(arguments);
-			Pop.Debug(`TryPickMapSequence ${JSON.stringify(MapSequence)}`);
+			this.OnDebug(`TryPickMapSequence ${JSON.stringify(MapSequence)}`);
 			//	validate input
 			{
 				//	remove trailing empty entries in the sequence (or disallow)
@@ -304,7 +322,7 @@ class TBoggleGame extends TGame
 		
 		function SkipTurn()
 		{
-			Pop.Debug(`SkipTurn`);
+			this.OnDebug(`SkipTurn`);
 			//	report move
 			const ActionRender = {};
 			ActionRender.Player = Player;
@@ -337,13 +355,13 @@ class TBoggleGame extends TGame
 			//	execute reply
 			try
 			{
-				Pop.Debug(`Executing reply; Reply=${JSON.stringify(Reply)}`);
+				this.OnDebug(`Executing reply; Reply=${JSON.stringify(Reply)}`);
 				//	gr: add arguments if missing
 				Reply.ActionArguments = Reply.ActionArguments || [];
 				const MoveActionName = Reply.Action;
 				const Lambda = Move.Actions[MoveActionName].Lambda;
 				const Result = Lambda(...Reply.ActionArguments);
-				Pop.Debug(`Move lambda result=${Result}`);
+				this.OnDebug(`Move lambda result=${Result}`);
 				return Result;
 			}
 			catch(e)	//	error with lambda
@@ -351,7 +369,7 @@ class TBoggleGame extends TGame
 				//	error executing the move lambda, so illegal move
 				//	try again by resending request
 				//	notify user with extra meta
-				Pop.Debug(`Last move error; ${e} trying again`);
+				this.OnDebug(`Last move error; ${e} trying again`);
 				const Error = {};
 				Error.Player = Player;
 				Error.BadMove = `${e}`;	//	catch typeerrors etc as strings otherwise they show as {}

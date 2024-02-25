@@ -275,7 +275,6 @@ export default class TMinesweeperGame extends TGame
 		
 		//	add scores to state
 		State.Scores = this.GetPlayerScores();
-		State.GameType = this.GameType;
 		
 		return super.GetPublicState(State);
 	}

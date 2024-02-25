@@ -36,6 +36,7 @@
 
 			//	server
 			import Minesweeper from '../Games/Minesweeper.js'
+			import Boggle from '../Games/Boggle.js'
 			
 			//	client
 			import GameElement_Debug from './GameElement_Debug.js'
@@ -157,9 +158,12 @@
 			//	boot a game server
 			async function RunGameServer(LocalServer,OnLog,OnError)
 			{
+				const Games = [Minesweeper,Boggle];
+				
 				while ( true )
 				{
-					let Game = new Minesweeper(OnLog);
+					const NextGameClass = Games[Math.floor(Math.random()*Games.length)];
+					let Game = new NextGameClass(OnLog);
 					LocalServer.Server_SetGame( Game );
 					
 					function OnStateChanged()

@@ -44,7 +44,8 @@ export default class TGame
 		delete State.Private;
 		
 		State.NextPlayer = this.NextPlayer;
-		
+		State.GameType = this.GameType;
+
 		return State;
 	}
 
