@@ -73,12 +73,7 @@ public protocol GameServer
 	func SendActionReply(_ Reply: ActionReply) throws
 }
 
-
-//	the offline server runs a javascript game.... somehow!
-//		- javascriptcore in swift & run the js?
-//		- Popengine+jscore and use CAPI?
-//		- Popengine+jscore and use websocket to local?
-public class GameServer_Offline : GameServer
+public class GameServer_Null : GameServer
 {
 	public init()
 	{
@@ -86,7 +81,43 @@ public class GameServer_Offline : GameServer
 	
 	public func Join(Player:PlayerUid) async throws
 	{
+		throw RuntimeError("GameServer_Null::Join")
+	}
+	
+	public func WaitForNextState() async throws
+	{
+		throw RuntimeError("GameServer_Null::WaitForNextState")
+	}
+	
+	public func SendActionReply(_ Reply: ActionReply) throws
+	{
+		throw RuntimeError("GameServer_Null::SendActionReply")
+	}
+	
+}
+
+
+
+//	the offline server runs a javascript game.... somehow!
+//		- javascriptcore in swift & run the js?
+//		- Popengine+jscore and use CAPI?
+//		- Popengine+jscore and use websocket to local?
+public class GameServer_Offline : GameServer
+{
+	var game : JavascriptGame
+	
+	public init() throws
+	{
+		game = try JavascriptGame("GameTest")
+	}
+	
+	public func Join(Player:PlayerUid) async throws
+	{
 		print("Joining game... \(Player)")
+
+
+		let value = await try game.CallAsync("Hello()")
+		print("Javascript output value... \(value)")
 
 		throw RuntimeError("Todo: Join offline game failed")
 	}
