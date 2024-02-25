@@ -1,9 +1,19 @@
 import SwiftUI
 
-enum RuntimeError: Error
+
+struct RuntimeError: LocalizedError 
 {
-	case runtimeError(String)
+	let description: String
+
+	init(_ description: String) {
+		self.description = description
+	}
+
+	var errorDescription: String? {
+		description
+	}
 }
+
 
 
 //	wrapper for a string, but strongly typed
@@ -76,7 +86,9 @@ public class GameServer_Offline : GameServer
 	
 	public func Join(Player:PlayerUid) async throws
 	{
-		throw RuntimeError.runtimeError("Todo: Join offline game failed")
+		print("Joining game... \(Player)")
+
+		throw RuntimeError("Todo: Join offline game failed")
 	}
 	
 	public func WaitForNextState() async throws
@@ -91,7 +103,7 @@ public class GameServer_Offline : GameServer
 	
 	public func SendActionReply(_ Reply: ActionReply) throws
 	{
-		throw RuntimeError.runtimeError("Todo: SendActionReply to offline game")
+		throw RuntimeError("Todo: SendActionReply to offline game")
 	}
 	
 }
