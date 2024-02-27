@@ -109,15 +109,19 @@ public class GameServer_Offline : GameServer
 	public init() throws
 	{
 		game = try JavascriptGame("GameTest")
+		//game = try JavascriptGame("Games/Minesweeper")
 	}
 	
 	public func Join(Player:PlayerUid) async throws
 	{
 		print("Joining game... \(Player)")
 
+		var value = await try game.Call("ImportedHello()")
+		print("Javascript ImportedHello() output value... \(value)")
 
-		let value = await try game.CallAsync("Hello()")
-		print("Javascript output value... \(value)")
+		
+		value = await try game.CallAsync("AsyncHello()")
+		print("Javascript AsyncHello() output value... \(value)")
 
 		throw RuntimeError("Todo: Join offline game failed")
 	}

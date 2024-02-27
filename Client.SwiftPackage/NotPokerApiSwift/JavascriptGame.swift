@@ -2,14 +2,79 @@ import JavaScriptCore
 import Combine
 
 
+
+
+
 public class JavascriptModule
 {
 	var context : JSContext
 	var lastError : String? = nil
 
-	public init(_ script:String) throws
+	
+	//	make a functor (@@convention = obj-c block) to add to the context
+	let requirefunctor: @convention(block) (String) -> (JSValue?) =
 	{
+		importpath in
+		let context = JSContext.current()!
+		
+		do
+		{
+			
+			//let expandedPath = NSString(string: importpath).expandingTildeInPath
+			let expandedPath = Bundle.main.url(forResource: importpath, withExtension: "")
+
+			if ( expandedPath == nil )
+			{
+				throw RuntimeError("File \(expandedPath) not found")
+			}
+			//let fileContent = try String(contentsOfFile: expandedPath)
+			let fileContent = try String(contentsOf: expandedPath!)
+
+			//	evaluate in-place
+			//	gr: todo: in popengine, we don't just evaluate here but return the global of a new context
+			//		not sure this is going to give us access to exports
+			return context.evaluateScript(fileContent)
+		}
+		catch
+		{
+			//	we cannot throw, set the exception
+			let exceptionString = "Require(\(importpath)) failed; \(error.localizedDescription)"
+			print(exceptionString)
+			let exceptionValue = JSValue.init(newErrorFromMessage: exceptionString, in: context)
+			context.exception = exceptionValue
+			return nil
+		}
+	}
+	
+	
+	//	make a functor (@@convention = obj-c block) to add to the context
+	let consolelogfunctor: @convention(block) (String) -> (JSValue?) =
+	{
+		message in
+		let context = JSContext.current()!
+		
+		print("JS \(context.name): \(message)")
+		return nil
+	}
+	
+
+	
+	public init(_ originalScript:String, moduleName:String) throws
+	{
+		let script = RewriteES6ImportsAndExports(originalScript)
 		context = JSContext()
+		context.name = moduleName
+
+		let global = context.globalObject!
+		
+		//	register global functors
+		global.setObject( requirefunctor, forKeyedSubscript: "require" as NSString)
+		
+		let console = JSValue(newObjectIn: context)
+		console?.setValue( consolelogfunctor, forProperty: "log" )
+		global.setObject( console, forKeyedSubscript: "console" as NSString)
+
+		
 		
 		context.exceptionHandler = { [self] (ctx: JSContext!, value: JSValue!) in
 			// type of String
@@ -81,6 +146,13 @@ public class JavascriptModule
 		//	chain promise with .then() and .catch()
 		JavascriptPromise.invokeMethod("then", withArguments: promiseArgs)
 		
+		/*
+		let quadruple: @convention(block) (Int) -> Int = { input in
+			return input * 4
+		}
+		context.setObject(quadruple, forKeyedSubscript: "quadruple" as NSString)
+		 */
+		
 		
 		//return await SwiftPromise
 				
@@ -130,9 +202,14 @@ public class JavascriptGame
 	
 	public init(_ filenameWithoutExtensionInBundle:String) throws
 	{
-		let scriptUrl = Bundle.main.url(forResource: filenameWithoutExtensionInBundle, withExtension: "js")!
-		let script = try! String(contentsOf: scriptUrl)
-		module = try JavascriptModule( script )
+		let scriptUrl = Bundle.main.url(forResource: filenameWithoutExtensionInBundle, withExtension: "js")
+		if ( scriptUrl == nil )
+		{
+			throw RuntimeError("Failed to find bundle file \(filenameWithoutExtensionInBundle)")
+		}
+		
+		let script = try! String(contentsOf: scriptUrl!)
+		module = try JavascriptModule( script, moduleName: "Game" )
 		
 	}
 	
