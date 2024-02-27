@@ -8,11 +8,24 @@ import Combine
 public class JavascriptModule
 {
 	var context : JSContext
-	var lastError : String? = nil
+	//var lastError : String? = nil
+	var lastError : String?
+	{
+		if ( context.exception == nil )
+		{
+			return nil
+		}
+		else
+		{
+			//	debugDescription always says Optional()
+			//let errorMessage = context.exception.debugDescription ?? ""
+			return context.exception.description
+		}
+	}
 
 	
 	//	make a functor (@@convention = obj-c block) to add to the context
-	let requirefunctor: @convention(block) (String) -> (JSValue?) =
+	let ImportModuleFunctor: @convention(block) (String) -> (JSValue?) =
 	{
 		importpath in
 		let context = JSContext.current()!
@@ -38,7 +51,7 @@ public class JavascriptModule
 		catch
 		{
 			//	we cannot throw, set the exception
-			let exceptionString = "Require(\(importpath)) failed; \(error.localizedDescription)"
+			let exceptionString = "ImportModule(\(importpath)) failed; \(error.localizedDescription)"
 			print(exceptionString)
 			let exceptionValue = JSValue.init(newErrorFromMessage: exceptionString, in: context)
 			context.exception = exceptionValue
@@ -53,7 +66,8 @@ public class JavascriptModule
 		message in
 		let context = JSContext.current()!
 		
-		print("JS \(context.name): \(message)")
+		let name = context.name!
+		print("JS \(name): \(message)")
 		return nil
 	}
 	
@@ -68,29 +82,36 @@ public class JavascriptModule
 		let global = context.globalObject!
 		
 		//	register global functors
-		global.setObject( requirefunctor, forKeyedSubscript: "require" as NSString)
+		global.setObject( ImportModuleFunctor, forKeyedSubscript: "ImportModule" as NSString)
 		
 		let console = JSValue(newObjectIn: context)
 		console?.setValue( consolelogfunctor, forProperty: "log" )
 		global.setObject( console, forKeyedSubscript: "console" as NSString)
 
 		
-		
-		context.exceptionHandler = { [self] (ctx: JSContext!, value: JSValue!) in
-			// type of String
-			let stacktrace = value.objectForKeyedSubscript("stack").toString()
-			// type of Number
-			let lineNumber = value.objectForKeyedSubscript("line")
-			// type of Number
-			let column = value.objectForKeyedSubscript("column")
-			let moreInfo = "in method \(stacktrace)Line number in file: \(lineNumber), column: \(column)"
-			lastError = "Javascript Exception: \(value) \(moreInfo)"
+		let ExceptionHandler = { [self] (ctx: JSContext!, value: JSValue!) in
+			
+			let stacktrace = value.objectForKeyedSubscript("stack")?.toString() ?? ""
+			let lineNumber = value.objectForKeyedSubscript("line")?.toInt32() ?? -1
+			let column = value.objectForKeyedSubscript("column")?.toInt32() ?? -1
+			let errorMeta = "Method=\(stacktrace); Line=\(lineNumber); column=\(column);"
+
+			let ExceptionValue = value?.toString() ?? "???"
+			
+			let exceptionString = "Exception: \(ExceptionValue) \(errorMeta)"
+			//print(exceptionString)
+			let exceptionValue = JSValue.init(newErrorFromMessage: exceptionString, in: context)
+			ctx.exception = exceptionValue!
 		}
+		
+		//	gr: don't need this? just check exception after every call?
+		//		if we use this exception handler, we need to set context's .exception
+		context.exceptionHandler = ExceptionHandler
 		
 		//	load script - always returns undefined
 		let Result = context.evaluateScript(script)
 		
-		if ( lastError != nil )
+		if ( context.exception != nil )
 		{
 			throw RuntimeError(lastError!)
 		}
@@ -102,6 +123,10 @@ public class JavascriptModule
 		let Code = functionAndArgs
 		//	call a func
 		let output = context.evaluateScript(Code)
+		if ( context.exception != nil )
+		{
+			throw RuntimeError(lastError!)
+		}
 		
 		//	if this returns a promise, warn
 		
