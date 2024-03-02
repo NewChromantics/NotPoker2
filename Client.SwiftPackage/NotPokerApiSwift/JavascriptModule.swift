@@ -2,6 +2,7 @@ import JavaScriptCore
 import Combine
 
 
+
 //	JSContext with extra built-ins, import/export support extra and error handling
 extension JSContext
 {
@@ -13,6 +14,11 @@ extension JSContext
 	var contextGroup : JSContextGroupRef
 	{
 		return JSContextGetGroup(context.jsGlobalContextRef)!
+	}
+	
+	var filename : String
+	{
+		return name ?? ""
 	}
 
 	var lastError : String?
@@ -32,14 +38,17 @@ extension JSContext
 	//	make a functor (@@convention = obj-c block) to add to the context
 	static let ImportModuleFunctor: @convention(block) (String) -> (JSValue?) =
 	{
-		importpath in
+		importFilename in
 		let context = JSContext.current()!
 		let contextGroup = context.contextGroup
 		
 		do
 		{
+			let importPath = JavascriptModule.ResolveFilePath( filename:importFilename, parentFilename: context.filename )
+
 			//let expandedPath = NSString(string: importpath).expandingTildeInPath
-			let expandedPath = Bundle.main.url(forResource: importpath, withExtension: "")
+			print("Importing \(importPath) from \(context.filename)")
+			let expandedPath = Bundle.main.url(forResource: importPath, withExtension: "")
 
 			if ( expandedPath == nil )
 			{
@@ -52,8 +61,9 @@ extension JSContext
 			//	create a new context
 			let NewGlobalContext = JSGlobalContextCreateInGroup(contextGroup, nil)
 			let NewContext = JSContext(jsGlobalContextRef: NewGlobalContext)!
-			NewContext.name = "\(context.name!) / \(importpath)"
-			
+			//NewContext.name = "\(context.name!) / \(importpath)"
+			NewContext.name = importPath
+
 			//let NewContext = JSContext()!
 			let NewContextExports = NewContext.InitModuleSupport()
 			
@@ -71,7 +81,7 @@ extension JSContext
 		catch
 		{
 			//	we cannot throw, set the exception
-			let exceptionString = "\(JavascriptModule.ImportModuleFunctionSymbol)(\(importpath)) failed; \(error.localizedDescription)"
+			let exceptionString = "\(JavascriptModule.ImportModuleFunctionSymbol)(\(importFilename)) failed; \(error.localizedDescription)"
 			print(exceptionString)
 			let exceptionValue = JSValue.init(newErrorFromMessage: exceptionString, in: context)
 			context.exception = exceptionValue
@@ -152,6 +162,19 @@ public class JavascriptModule
 	var context : JSContext
 	var contextGroup : JSContextGroupRef
 
+	//	given ./hello.js in parent Folder/file.js
+	//	we should resolve to Folder/hello.js
+	static func ResolveFilePath(filename:String, parentFilename:String) -> String
+	{
+		//	get path out of parent
+		var parentPath = parentFilename.components(separatedBy: "/")
+		//	pop filename from parent
+		parentPath.removeLast()
+		parentPath.append( filename )
+		var filePath = parentPath.joined(separator: "/")
+		return filePath
+	}
+	
 	public init(_ script:String, moduleName:String) throws
 	{
 		contextGroup = JSContextGroupCreate()

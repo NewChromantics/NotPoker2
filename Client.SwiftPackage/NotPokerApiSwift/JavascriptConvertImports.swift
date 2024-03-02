@@ -174,6 +174,10 @@ func GetSubString( _ string:String, start:Int, length:Int) throws -> String
 
 func StringFromRange(_ Haystack:String, needle:NSRange) throws -> String
 {
+	if ( needle.length == 0 )
+	{
+		return ""
+	}
 	return try! GetSubString( Haystack, start: needle.location, length: needle.length )
 }
 
@@ -330,10 +334,7 @@ func ConvertImports(Source:String,importFunctionName:String) throws -> String
 	if #available(macOS 13.0, *) 
 	{
 		let Whitespace = "\\s*";
-		let ImportTerminator = ";|\\r|\\n|$"
-		let QuotedFilenameMatch = "[^\\n]"
 		let Quote = "[\\\"'`]"
-		//let ImportPattern = "import(.*)from[\(Whitespace)]?[\(QuotedFilename)]{1}"
 		let ImportPattern = "import(.+)from\(Whitespace)\(Quote){1}(.+)\(Quote){1}"
 
 		//	to make some things simpler when importing the same file, but don't want conflicting symbols, add a counter
@@ -360,7 +361,7 @@ func ConvertImports(Source:String,importFunctionName:String) throws -> String
 				ReplacementString += "const \(symbol.variable) = \(symbol.importingSymbol); "
 				//ReplacementString += "\n"
 			}
-			print(ReplacementString+"\n\n")
+			//print(ReplacementString+"\n\n")
 
 			ImportCounter += 1
 			
@@ -413,6 +414,22 @@ func ConvertImports(Source:String,importFunctionName:String) throws -> String
 //	export
 func ConvertExports(Source:String,exportSymbolName:String) -> String
 {
+	return Source
+	
+	func ExportReplacement(match:String,captures:[String]) throws -> String
+	{
+		print("export match: "+match)
+		return "/*\(match)*/"
+	}
+	
+	let Whitespace = "\\s*";
+	let ExportPattern = "[\\s|^]export\(Whitespace)(default)?\(Whitespace)"
+	var ES5Source = try! string_replace_regex( Source, pattern: ExportPattern, replacer: ExportReplacement )
+	
+	print(ES5Source)
+	
+	return ES5Source
+	
 	/*
 	//	moving export to AFTER the declaration is hard.
 	//	so instead, find all the exports, declare them all at the end
@@ -491,6 +508,6 @@ public func RewriteES6ImportsAndExports(_ originalScript:String,importFunctionNa
 {
 	var Source = originalScript
 	Source = try! ConvertImports(Source:Source, importFunctionName:importFunctionName )
-	Source = ConvertExports(Source: Source, exportSymbolName:exportSymbolName )
+	Source = try! ConvertExports(Source: Source, exportSymbolName:exportSymbolName )
 	return Source
 }
