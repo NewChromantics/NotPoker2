@@ -26,7 +26,7 @@ import Foundation
 
 //	make a pattern for valid js symbols
 let Symbol = "([a-zA-Z0-9_]+)";
-let QuotedFilename = "(\"|')(.+\\.js)('|\")";
+let QuotedFilename = "('|\"|`)(.+\\.js)('|\"|`)";
 let QuotedFilenamePopEngineJs = "(\"|')(.+\\/PopEngine\\.js)('|\")";
 let Whitespace = "\\s+";
 let OptionalWhitespace = "\\s*";
@@ -120,17 +120,20 @@ std::string regex_replace_callback(const std::string& Input,std::regex Regex,std
 }
 */
 
-func regexp_matches(_ text:String!, _ pattern:String!, _ options:NSRegularExpression.Options = NSRegularExpression.Options.caseInsensitive) -> [NSTextCheckingResult] {
-		do {
-			let regex = try NSRegularExpression(pattern: pattern, options: options)
-			let nsString = text as NSString
-			let results = regex.matches(in: text,options: [], range: NSMakeRange(0, nsString.length))
-			return results
-		} catch let error as NSError {
-			print("invalid regex: \(error.localizedDescription)")
-			return []
-		}
+func regexp_matches(_ text:String!, _ pattern:String!, _ options:NSRegularExpression.Options=NSRegularExpression.Options.caseInsensitive) throws -> [NSTextCheckingResult]
+{
+	do 
+	{
+		let regex = try NSRegularExpression(pattern: pattern, options: options)
+		let nsString = text as NSString
+		let results = regex.matches(in: text,options: [], range: NSMakeRange(0, nsString.length))
+		return results
 	}
+	catch let error as NSError
+	{
+		throw RuntimeError("invalid regex: \(error.localizedDescription)")
+	}
+}
 
 extension String
 {
@@ -147,7 +150,7 @@ func strRange(_ str:String,_ i:Int, len:Int)->Range<String.Index>
 	let range = startIndex..<endIndex//swift 3 upgrade was-> startIndex...endIndex
 	return range/*longhand -> Range(start: startIndex,end: endIndex)*/
 }
-func Substring( _ string:String, start:Int, length:Int) throws -> String
+func GetSubString( _ string:String, start:Int, length:Int) throws -> String
 {
 	if ( start < 0 )
 	{
@@ -161,35 +164,163 @@ func Substring( _ string:String, start:Int, length:Int) throws -> String
 
 	let lastIndex = start+length
 	let stringStart = string.index( string.startIndex, offsetBy: start )
-	let stringEnd = string.index( string.startIndex, offsetBy: start+length )
+	let stringEnd = string.index( string.startIndex, offsetBy: start+length-1 )
 	let range = string[stringStart...stringEnd]
 	let returnString = String(range)
 
 	return returnString
 }
 
-typealias Replacer = (_ match:String)->String?//if nil is returned then replacer closure didnt want to replace the match
-	/**
-	 * New, replaces with a closure
-	 * TODO: ⚠️️ Try to performance test if accumulative substring is faster (you += before the match + the match and so on)
-	 * EXAMPLE: Swift.print("bad wolf, bad dog, Bad sheep".replace("\\b([bB]ad)\\b"){return $0.isLowerCased ? $0 : $0.lowercased()})
-	 */
-func string_replace_regex(_ str:String, pattern:String, options:NSRegularExpression.Options = NSRegularExpression.Options.caseInsensitive,replacer:Replacer) -> String{
-//        Swift.print("RegExp.replace")
-		var str = str
-	regexp_matches(str, pattern).reversed().forEach() {
-			let range:NSRange = $0.range(at: 1)
-//            Swift.print("range: " + "\(range)")
-			
-			let stringRange = strRange(str, range.location, len:range.length)
-			let match:String = try! Substring(str, start:range.location, length:range.length)//swift 4 upgrade, was: str.substring(with: stringRange) //TODO: ⚠️️ reuse the stringRange to get the subrange here
-//            Swift.print("match: " + "\(match)")
-			if let replacment:String = replacer(match) {
-				str.replaceSubrange(stringRange, with: replacment)
-			}
+
+func StringFromRange(_ Haystack:String, needle:NSRange) throws -> String
+{
+	return try! GetSubString( Haystack, start: needle.location, length: needle.length )
+}
+
+typealias Replacer = (_ match:String, _ captures:[String]) throws -> String
+
+func string_replace_regex(_ str:String, pattern:String, options:NSRegularExpression.Options = NSRegularExpression.Options.caseInsensitive,replacer:Replacer) throws -> String
+{
+	var str = str
+	//	gr: need to process in reverse, as the original string needs to be modified backwards
+	let matches = try regexp_matches(str, pattern).reversed()
+	matches.forEach()
+	{
+		match in
+		
+		let LineRange = match.range(at:0)
+		let Line = try! StringFromRange( str, needle: LineRange )
+		let CaptureCount = match.numberOfRanges-1
+		var Captures : [String] = []
+		for CaptureIndex in 0...CaptureCount-1
+		{
+			let CaptureRange = match.range(at:1+CaptureIndex)
+			let Capture = try! StringFromRange( str, needle:CaptureRange )
+			Captures.append( Capture )
 		}
-		return str
+
+		let LineStrRange = strRange(str, LineRange.location, len:LineRange.length)
+		let replacment = try! replacer( Line, Captures )
+		str.replaceSubrange( LineStrRange, with: replacment)
 	}
+	return str
+}
+
+
+func string_regex_match_groups(_ str:String, pattern:String, options:NSRegularExpression.Options = NSRegularExpression.Options.caseInsensitive) throws -> [String]?
+{
+	var str = str
+	//	gr: need to process in reverse, as the original string needs to be modified backwards
+	let matches = try regexp_matches(str, pattern)
+	//	expecting only one match
+	if ( matches.count != 1 )
+	{
+		throw RuntimeError("Too many regex matches")
+	}
+	
+	let match = matches[0]
+	let LineRange = match.range(at:0)
+	let Line = try! StringFromRange( str, needle: LineRange )
+	let CaptureCount = match.numberOfRanges-1
+	var Captures : [String] = []
+	for CaptureIndex in 0...CaptureCount-1
+	{
+		let CaptureRange = match.range(at:1+CaptureIndex)
+		let Capture = try! StringFromRange( str, needle:CaptureRange )
+		Captures.append( Capture )
+	}
+	return Captures
+
+}
+
+
+
+//import RegexBuilder
+@available(macOS 13.0, *)
+func FilenameToModuleSymbol(_ filename:String, uidSuffix:Int) -> String
+{
+	var Symbol = filename;
+	//	replace non-symbol chars with underscores
+	//	todo: use regex
+	Symbol.replace("/",with:"_")
+	Symbol.replace(".",with:"_")
+	return "__Module_Exports_From_\(Symbol)_\(uidSuffix)"
+}
+
+struct ImportSymbol
+{
+	static let Default = "default"
+	var importingSymbol : String	//	if null then we use the module's whole export list
+	var variable : String
+}
+
+extension String 
+{
+	func trim() -> String
+	{
+		return self.trimmingCharacters(in: NSCharacterSet.whitespaces)
+	}
+}
+
+func TrimString(_ str:String) -> String
+{
+	var Trimmed = str
+	Trimmed.trim()
+	return Trimmed
+}
+
+func ExtractSymbols(_ symbolsString:String,moduleExportsSymbol:String) throws -> [ImportSymbol]
+{
+	func SplitSingleSymbol(origSymbolString:String) throws -> ImportSymbol
+	{
+		var symbolString = origSymbolString
+		symbolString = symbolString.trim()
+		let InsideBraces = symbolString.starts(with: "{")
+		//	if we're not importing symbols, then we are just importing the default
+		let ImportingSymbols = InsideBraces
+		symbolString = symbolString.trimmingCharacters(in: ["{","}"])
+
+		//	are we renaming the imported symbol?
+		//	x as y
+		//	* as z
+		//	*
+		//	abc
+		let SplitByAs = symbolString.components(separatedBy:" as ").map(TrimString)
+		if ( SplitByAs.count > 2 )
+		{
+			throw RuntimeError("import symbol with as, split more than once")
+		}
+		
+		var ImportingSymbol = SplitByAs[0]
+		if ( ImportingSymbol == "*" )
+		{
+			ImportingSymbol = "\(moduleExportsSymbol)"
+		}
+		else if ( InsideBraces )
+		{
+			ImportingSymbol = "\(moduleExportsSymbol).\(ImportingSymbol)"
+		}
+		else
+		{
+			ImportingSymbol = "\(moduleExportsSymbol).\(ImportSymbol.Default)"
+		}
+
+		var Variable = ImportingSymbol
+		if ( SplitByAs.count == 2 )
+		{
+			Variable = SplitByAs[1]
+		}
+		else
+		{
+			Variable = SplitByAs[0]
+		}
+		
+		return ImportSymbol(importingSymbol: ImportingSymbol, variable: Variable)
+	}
+	
+	var SymbolStrings = symbolsString.components(separatedBy: [","])
+	return try! SymbolStrings.map(SplitSingleSymbol)
+}
 
 
 func ConvertImports(Source:String,importFunctionName:String) throws -> String
@@ -198,14 +329,45 @@ func ConvertImports(Source:String,importFunctionName:String) throws -> String
 	//	import<symbols>from<script><instruction end>
 	if #available(macOS 13.0, *) 
 	{
-		let ImportPattern = "import(\\s)+from"
+		let Whitespace = "\\s*";
+		let ImportTerminator = ";|\\r|\\n|$"
+		let QuotedFilenameMatch = "[^\\n]"
+		let Quote = "[\\\"'`]"
+		//let ImportPattern = "import(.*)from[\(Whitespace)]?[\(QuotedFilename)]{1}"
+		let ImportPattern = "import(.+)from\(Whitespace)\(Quote){1}(.+)\(Quote){1}"
 
-		func ImportReplacement(match:String) -> String?
+		//	to make some things simpler when importing the same file, but don't want conflicting symbols, add a counter
+		var ImportCounter = 0
+		func ImportReplacement(match:String,captures:[String]) throws -> String
 		{
-			return match
+			let SymbolsString = captures[0];
+			let Filename = captures[1]
+			let ModuleSymbol = FilenameToModuleSymbol(Filename,uidSuffix:ImportCounter)
+			let Symbols = try! ExtractSymbols( SymbolsString, moduleExportsSymbol: ModuleSymbol )
+			
+			//print("Matched \(match)<----")
+			//print("  Symbols=\(SymbolsString)<----")
+			//print("  ExtractedSymbols=\(Symbols)<----")
+			//print("  Filename=\(captures[1])<----")
+			
+			let ModuleObjectReplacement = "const \(ModuleSymbol) = \(JavascriptModule.ImportModuleFunctionSymbol)(`\(Filename)`);"
+			//print("  ModuleObjectReplacement=\(ModuleObjectReplacement)<----")
+			
+			var ReplacementString = ModuleObjectReplacement
+			//ReplacementString += "\n"
+			for symbol in Symbols
+			{
+				ReplacementString += "const \(symbol.variable) = \(symbol.importingSymbol); "
+				//ReplacementString += "\n"
+			}
+			print(ReplacementString+"\n\n")
+
+			ImportCounter += 1
+			
+			return ReplacementString
 		}
 		
-		var ES5Source = string_replace_regex( Source, pattern: ImportPattern, replacer: ImportReplacement )
+		var ES5Source = try! string_replace_regex( Source, pattern: ImportPattern, replacer: ImportReplacement )
 		return ES5Source
 	}
 	else
