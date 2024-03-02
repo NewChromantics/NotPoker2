@@ -28,7 +28,6 @@ extension JSContext
 			return context.exception.description
 		}
 	}
-
 	
 	//	make a functor (@@convention = obj-c block) to add to the context
 	static let ImportModuleFunctor: @convention(block) (String) -> (JSValue?) =
@@ -58,7 +57,7 @@ extension JSContext
 			//let NewContext = JSContext()!
 			let NewContextExports = NewContext.InitModuleSupport()
 			
-			NewContext.evaluateScript(fileContent)
+			NewContext.evaluateES6Script(fileContent)
 			if ( NewContext.exception != nil )
 			{
 				throw RuntimeError(NewContext.lastError!)
@@ -72,7 +71,7 @@ extension JSContext
 		catch
 		{
 			//	we cannot throw, set the exception
-			let exceptionString = "ImportModule(\(importpath)) failed; \(error.localizedDescription)"
+			let exceptionString = "\(JavascriptModule.ImportModuleFunctionSymbol)(\(importpath)) failed; \(error.localizedDescription)"
 			print(exceptionString)
 			let exceptionValue = JSValue.init(newErrorFromMessage: exceptionString, in: context)
 			context.exception = exceptionValue
@@ -100,11 +99,11 @@ extension JSContext
 		
 		
 		let NewContextExports = JSValue(newObjectIn: context)!
-		global.setObject( NewContextExports, forKeyedSubscript: "exports" as NSString)
-		//global.setValue( NewContextExports, forProperty: "exports" as NSString)
+		global.setObject( NewContextExports, forKeyedSubscript: JavascriptModule.ModuleExportsSymbol as NSString)
+		//global.setValue( NewContextExports, forProperty: ModuleExportsSymbol as NSString)
 
 		//	register global functors
-		global.setObject( JSContext.ImportModuleFunctor, forKeyedSubscript: "ImportModule" as NSString)
+		global.setObject( JSContext.ImportModuleFunctor, forKeyedSubscript: JavascriptModule.ImportModuleFunctionSymbol as NSString)
 		
 		let console = JSValue(newObjectIn: context)
 		console?.setValue( JSContext.consolelogfunctor, forProperty: "log" )
@@ -132,7 +131,14 @@ extension JSContext
 		
 		return NewContextExports
 	}
+
+	func evaluateES6Script(_ originalScript:String) -> JSValue?
+	{
+		let ES5Script = RewriteES6ImportsAndExports(originalScript, importFunctionName: JavascriptModule.ImportModuleFunctionSymbol, exportSymbolName: JavascriptModule.ModuleExportsSymbol )
+		return self.evaluateScript( ES5Script )
+	}
 	
+
 }
 
 
@@ -140,24 +146,23 @@ extension JSContext
 
 public class JavascriptModule
 {
+	static let ImportModuleFunctionSymbol = "__ImportModule"
+	static let ModuleExportsSymbol = "__exports"
+	
 	var context : JSContext
 	var contextGroup : JSContextGroupRef
-	
-	
-	public init(_ originalScript:String, moduleName:String) throws
+
+	public init(_ script:String, moduleName:String) throws
 	{
 		contextGroup = JSContextGroupCreate()
 		let globalcontext = JSGlobalContextCreateInGroup(contextGroup, nil)
 		context = JSContext(jsGlobalContextRef: globalcontext)
 		context.name = moduleName
-		
-		let script = RewriteES6ImportsAndExports(originalScript)
-
-		
+				
 		context.InitModuleSupport()
 
 		//	load script - always returns undefined
-		let Result = context.evaluateScript(script)
+		let Result = context.evaluateES6Script(script)
 		
 		if ( context.exception != nil )
 		{
