@@ -156,8 +156,8 @@ extension JSContext
 
 public class JavascriptModule
 {
-	static let ImportModuleFunctionSymbol = "__ImportModule"
-	static let ModuleExportsSymbol = "__exports"
+	static public let ImportModuleFunctionSymbol = "__ImportModule"
+	static public let ModuleExportsSymbol = "__exports"
 	
 	var context : JSContext
 	var contextGroup : JSContextGroupRef

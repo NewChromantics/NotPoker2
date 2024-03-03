@@ -327,7 +327,7 @@ func ExtractSymbols(_ symbolsString:String,moduleExportsSymbol:String) throws ->
 }
 
 
-func ConvertImports(Source:String,importFunctionName:String) throws -> String
+func ConvertImports(Source:String,importFunctionName:String,replacementNewLines:Bool) throws -> String
 {
 	//	gr: we can probably reduce this down to one regex
 	//	import<symbols>from<script><instruction end>
@@ -354,12 +354,22 @@ func ConvertImports(Source:String,importFunctionName:String) throws -> String
 			let ModuleObjectReplacement = "const \(ModuleSymbol) = \(JavascriptModule.ImportModuleFunctionSymbol)(`\(Filename)`);"
 			//print("  ModuleObjectReplacement=\(ModuleObjectReplacement)<----")
 			
-			var ReplacementString = ModuleObjectReplacement
-			//ReplacementString += "\n"
+			var ReplacementString = ""
+			ReplacementString += "/*\(match)*/\n"
+			
+			ReplacementString += ModuleObjectReplacement
+			if ( replacementNewLines )
+			{
+				ReplacementString += "\n"
+			}
+			
 			for symbol in Symbols
 			{
 				ReplacementString += "const \(symbol.variable) = \(symbol.importingSymbol); "
-				//ReplacementString += "\n"
+				if ( replacementNewLines )
+				{
+					ReplacementString += "\n"
+				}
 			}
 			//print(ReplacementString+"\n\n")
 
@@ -412,7 +422,7 @@ func ConvertImports(Source:String,importFunctionName:String) throws -> String
 //	export function C(...
 //	export const D;
 //	export
-func ConvertExports(Source:String,exportSymbolName:String) -> String
+func ConvertExports(Source:String,exportSymbolName:String,replacementNewLines:Bool) -> String
 {
 	return Source
 	
@@ -504,10 +514,10 @@ func ConvertExports(Source:String,exportSymbolName:String) -> String
 
 
 //	convert ES6 imports to custom import & export symbols
-public func RewriteES6ImportsAndExports(_ originalScript:String,importFunctionName:String,exportSymbolName:String) -> String
+public func RewriteES6ImportsAndExports(_ originalScript:String,importFunctionName:String,exportSymbolName:String,replacementNewLines:Bool=false) -> String
 {
 	var Source = originalScript
-	Source = try! ConvertImports(Source:Source, importFunctionName:importFunctionName )
-	Source = try! ConvertExports(Source: Source, exportSymbolName:exportSymbolName )
+	Source = try! ConvertImports(Source:Source, importFunctionName:importFunctionName, replacementNewLines:replacementNewLines )
+	Source = try! ConvertExports(Source: Source, exportSymbolName:exportSymbolName, replacementNewLines:replacementNewLines )
 	return Source
 }
