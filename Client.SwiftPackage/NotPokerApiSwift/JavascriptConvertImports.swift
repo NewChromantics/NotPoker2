@@ -189,9 +189,9 @@ struct ImportSymbol
 
 extension String 
 {
-	func trim() -> String
+	func trim(trimNewLines:Bool=false) -> String
 	{
-		return self.trimmingCharacters(in: NSCharacterSet.whitespaces)
+		return self.trimmingCharacters(in: trimNewLines ? NSCharacterSet.whitespacesAndNewlines : NSCharacterSet.whitespaces)
 	}
 }
 
@@ -328,10 +328,10 @@ func ConvertExports(Source:String,exportSymbolName:String,replacementNewLines:Bo
 	func ExportReplacement(match:String,captures:[String]) throws -> String
 	{
 		let Prefix = captures[0]
-		let KeywordsAndSymbol = captures[1].trim()
+		let KeywordsAndSymbol = captures[1].trim(trimNewLines:true)
 		let VariableEnd = captures[2]
 		
-		var Keywords = KeywordsAndSymbol.components(separatedBy: .whitespacesAndNewlines)/*.map( TrimString )*/
+		var Keywords = KeywordsAndSymbol.components(separatedBy: .whitespacesAndNewlines)
 		var Symbol = Keywords.popLast()!
 		
 		var HasDefault = Keywords.filter{ $0 == "default" }.count != 0
