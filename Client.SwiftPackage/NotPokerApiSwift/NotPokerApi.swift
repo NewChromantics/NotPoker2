@@ -108,17 +108,21 @@ public class GameServer_Offline : GameServer
 	
 	public init() throws
 	{
-		game = try JavascriptGame("GameTest")
-		//game = try JavascriptGame("Games/Minesweeper")
+		//game = try JavascriptGame("GameTest.js")
+		game = try JavascriptGame("Games/Minesweeper.js")
 	}
 	
 	public func Join(Player:PlayerUid) async throws
 	{
 		print("Joining game... \(Player)")
 
+		//	gr: now need to do a lobby
+		return
+		
+		
+		//	tests
 		var value = await try game.Call("ImportedHello()")
 		print("Javascript ImportedHello() output value... \(value)")
-
 		
 		value = await try game.CallAsync("AsyncHello()")
 		print("Javascript AsyncHello() output value... \(value)")

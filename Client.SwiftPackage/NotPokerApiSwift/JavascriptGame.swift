@@ -7,14 +7,14 @@ public class JavascriptGame
 	
 	public init(_ filenameWithoutExtensionInBundle:String) throws
 	{
-		let scriptUrl = Bundle.main.url(forResource: filenameWithoutExtensionInBundle, withExtension: "js")
+		let scriptUrl = Bundle.main.url(forResource: filenameWithoutExtensionInBundle, withExtension: "")
 		if ( scriptUrl == nil )
 		{
 			throw RuntimeError("Failed to find bundle file \(filenameWithoutExtensionInBundle)")
 		}
 		
 		let script = try! String(contentsOf: scriptUrl!)
-		module = try JavascriptModule( script, moduleName: "Game" )
+		module = try JavascriptModule( script, moduleName: filenameWithoutExtensionInBundle )
 	}
 	
 	public func Call(_ functionAndArgs:String) throws -> String
