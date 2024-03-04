@@ -25,12 +25,18 @@ import Foundation
 
 
 //	make a pattern for valid js symbols
-let Symbol = "([a-zA-Z0-9_]+)";
-let QuotedFilename = "('|\"|`)(.+\\.js)('|\"|`)";
-let Keyword = "(const|var|let|class|function|extends|async\\sfunction)";	//	prefixes which break up export, variable name etc
+let SymbolChars = "a-zA-Z0-9_";
+//let Symbol = "[\(SymbolChars)]+";
+let SymbolAndWhitespace = "[a-zA-Z0-9_\\s]+";
 let Whitespace = "\\s+";
 let OptionalWhitespace = "\\s*";
 let Quote = "[\\\"'`]"
+
+//	gr: need a prefix so we dont match
+//		sexport
+//	but anything not-symbolly can be before
+let ExportPrefix = "^|[^\(SymbolChars)]"
+
 
 //	must be other cases... like new line and symbol? maybe we can use ^symbol ?
 //	symbol( <-- function
@@ -38,87 +44,7 @@ let Quote = "[\\\"'`]"
 //	symbol; <-- var declaration
 //	symbol{ <-- class
 let VariableNameEnd = "\\(|=|$|\\n|;|extends|\\{";
-/*
-func ReplacementPattern2(std::stringstream& Output,std::smatch& Match) -> String
-{
-	//	import { $1 } from $2
-	//	split symbols
-	auto RawSymbolsString = Match[1].str();
-	auto Filename = Match[2].str() + Match[3].str() + Match[4].str();
-	
-	Array<std::string> InputSymbols;
-	Array<std::string> OutputSymbols;
 
-	const std::string WhitespaceChars = " \t\n";
-	
-
-	auto AppendSymbol = [&](const std::string& Match,const char& Delin)
-	{
-		//	split `X as Y`
-		//	to avoid matching as in class, split by whitespace, so we should have either 1 or 3 matches
-		BufferArray<std::string,3> Input_As_Output;
-		Soy::StringSplitByMatches( GetArrayBridge(Input_As_Output), Match, WhitespaceChars, false );
-
-		//	no "as" in the middle
-		if ( Input_As_Output.GetSize() == 1 )
-		{
-			Input_As_Output.PushBack( Input_As_Output[0] );
-			Input_As_Output.PushBack( Input_As_Output[0] );
-		}
-		
-		InputSymbols.PushBack( Input_As_Output[0] );
-		//	as
-		OutputSymbols.PushBack( Input_As_Output[2] );
-		return true;
-	};
-	
-	Soy::StringSplitByMatches( AppendSymbol, RawSymbolsString, ",", false );
-
-	//	generate module name
-	std::stringstream ModuleName;
-	ModuleName << "_Module_";
-	for ( auto s=0;	s<OutputSymbols.GetSize();	s++ )
-		ModuleName << "_" << OutputSymbols[s];
-	
-	//	add module
-	Output << "const " << ModuleName.str() << " = require(" << Filename << ");\n";
-	
-	//	add symbols
-	for ( auto s=0;	s<OutputSymbols.GetSize();	s++ )
-	{
-		auto& InputSymbol = InputSymbols[s];
-		auto& OutputSymbol = OutputSymbols[s];
-		Output << "const " << OutputSymbol << " = " << ModuleName.str() << "." << InputSymbol << ";\n";
-	}
-}
-
-std::string regex_replace_callback(const std::string& Input,std::regex Regex,std::function<void(std::stringstream&,std::smatch&)> Replacement)
-{
-	// Make a local copy
-	std::string PendingInput = Input;
-
-	// Reset resulting value
-	std::stringstream Output;
-
-	std::smatch Matches;
-	while (std::regex_search(PendingInput, Matches, Regex))
-	{
-		// Build resulting string
-		Output << Matches.prefix();
-		Replacement( Output, Matches );
-		
-		//	next search the rest
-		PendingInput = Matches.suffix();
-	}
-	
-	//	If there is still a suffix, add it
-	//Output << Matches.suffix();	//	gr: seems to be empty?
-	//	add the remaining string that didn't match
-	Output << PendingInput;
-	
-	return Output.str();
-}
-*/
 
 func regexp_matches(_ text:String!, _ pattern:String!, caseSensitive:Bool) throws -> [NSTextCheckingResult]
 {
@@ -387,35 +313,6 @@ func ConvertImports(Source:String,importFunctionName:String,replacementNewLines:
 		throw RuntimeError("No regex")
 	}
 
-
-	/*
-	//	special case to catch PopEngine.js, which is how we import in web
-	std::stringstream ImportPatternPop;	ImportPatternPop << "import" << Whitespace << "Pop" << Whitespace << "from" << Whitespace << QuotedFilenamePopEngineJs;
-	std::string ReplacementPatternPop("/* import Pop from $1$2$3 */");
-	
-	//	import * as X from QUOTEFILENAMEQUOTE
-	std::stringstream ImportPattern0;	ImportPattern0 << "import" << Whitespace << "\\*" << Whitespace << "as" << Whitespace << Symbol << Whitespace << "from" << Whitespace << QuotedFilename;
-	std::string ReplacementPattern0("const $1 = require($2$3$4);");
-
-	//	import X from QUOTEFILENAMEQUOTE
-	std::stringstream ImportPattern1;	ImportPattern1 << "import" << Whitespace << Symbol << Whitespace << "from" << Whitespace << QuotedFilename;
-	std::string ReplacementPattern1("const $1_Module = require($2$3$4); const $1 = $1_Module.default;");
-	
-	//	import {X} from QUOTEFILENAMEQUOTE
-	std::stringstream ImportPattern2;	ImportPattern2 << "import" << OptionalWhitespace << "\\{([^}]*)\\}" << OptionalWhitespace << "from" << Whitespace << QuotedFilename;
-	//	gr: needs special case to replaceop
-	//std::string ReplacementPattern2("/* symbols: $1 */");
-	
-	//	$0 whole string match
-	//	$1 capture group 0 etc
-	Source = std::regex_replace(Source, std::regex(ImportPatternPop.str()), ReplacementPatternPop );
-	Source = std::regex_replace(Source, std::regex(ImportPattern0.str()), ReplacementPattern0 );
-	Source = std::regex_replace(Source, std::regex(ImportPattern1.str()), ReplacementPattern1 );
-	Source = regex_replace_callback(Source, std::regex(ImportPattern2.str()), ReplacementPattern2 );
-	
-	//std::Debug << std::endl << std::endl << "new source; "  << std::endl << Source << std::endl<< std::endl;
-	 */
-	return Source;
 }
 
 
@@ -428,42 +325,34 @@ func ConvertExports(Source:String,exportSymbolName:String,replacementNewLines:Bo
 	var ExportedSymbols:[ImportSymbol]=[]
 	
 	
-	func ExportReplacement0(match:String,captures:[String]) throws -> String
+	func ExportReplacement(match:String,captures:[String]) throws -> String
 	{
-		print(captures)
-		let Default = captures[0]
-		let Keyword = captures[1]
-		let Symbol = captures[2]
-		let VariableEnd = captures[3]
-		ExportedSymbols.append( ImportSymbol(importingSymbol: Symbol, variable: Symbol) )
+		let Prefix = captures[0]
+		let KeywordsAndSymbol = captures[1].trim()
+		let VariableEnd = captures[2]
+		
+		var Keywords = KeywordsAndSymbol.components(separatedBy: .whitespacesAndNewlines)/*.map( TrimString )*/
+		var Symbol = Keywords.popLast()!
+		
+		var HasDefault = Keywords.filter{ $0 == "default" }.count != 0
+		var KeywordsWithoutDefault = Keywords.filter{ $0 != "default" }
+		var OutputKeywords = KeywordsWithoutDefault.joined(separator: " ")
+
+		ExportedSymbols.append( ImportSymbol(importingSymbol: Symbol, variable: HasDefault ? ImportSymbol.Default : Symbol ) )
 	
-		var Output = "/*\(match)*/\n"
-		Output += "\(Keyword) \(Symbol) \(VariableEnd)"
+		//var Output = "/*\(match)*/\n"
+		var Output = ""
+		Output += "\(Prefix) \(OutputKeywords) \(Symbol) \(VariableEnd)"
 		return Output
 	}
 	
-	func ExportReplacement1(match:String,captures:[String]) throws -> String
-	{
-		return match
-		return "/*\(match)*/"
-	}
-	
-	//let Prefix = "[\\s|^]"
-	let Keyword = "default|const|var|let|class|function|extends|async";	//	prefixes which break up export, variable name etc
-	let KeywordOrWhitespace = "\(Keyword)|\\s";	//	prefixes which break up export, variable name etc
-	let Symbol = "([a-zA-Z0-9_]+)";
 
-	//	export DECL VAR=
-	let ExportPattern0 = "export\(Whitespace)(\(KeywordOrWhitespace))+(\(Symbol))\(OptionalWhitespace)(\(VariableNameEnd))"
-	//ExportPattern0 << "export" << DefaultMaybe << Whitespace << Keyword << Whitespace << Symbol << OptionalWhitespace << VariableNameEnd;
-
-	//	export Symbol;
-	let ExportPattern1 = "fdxgfgfdgfd"
-	//ExportPattern1 << "export" << DefaultMaybe << Whitespace << Symbol << OptionalWhitespace << ";";
+	//	gr: we can't really filter keywords here properly
+	//		as we can't nicely match a group over & over (will only grab last)
+	//	so grab EVERYTHING up to a break
+	let ExportPattern = "(\(ExportPrefix))export\(Whitespace)(\(SymbolAndWhitespace))(\(VariableNameEnd))"
 	
-	var ES5Source = Source
-	ES5Source = try! string_replace_regex( ES5Source, pattern: ExportPattern0, caseSensitive: true, replacer: ExportReplacement0 )
-	ES5Source = try! string_replace_regex( ES5Source, pattern: ExportPattern1, caseSensitive: true, replacer: ExportReplacement1 )
+	var ES5Source = try! string_replace_regex( Source, pattern: ExportPattern, caseSensitive: true, replacer: ExportReplacement )
 
 	//	now output all the symbols we found
 	ES5Source += "\n //\texports found\n"
@@ -474,77 +363,6 @@ func ConvertExports(Source:String,exportSymbolName:String,replacementNewLines:Bo
 	}
 	
 	return ES5Source
-	
-	/*
-	//	moving export to AFTER the declaration is hard.
-	//	so instead, find all the exports, declare them all at the end
-	//	of the file, and then just clean the declarations
-	auto DefaultMaybe = "\\s*(default)?";
-
-	//	export DECL VAR=
-	std::stringstream ExportPattern0;	ExportPattern0 << "export" << DefaultMaybe << Whitespace << Keyword << Whitespace << Symbol << OptionalWhitespace << VariableNameEnd;
-	std::string ReplacementPattern0("$2 $3 $4");
-
-	//	export Symbol;
-	std::stringstream ExportPattern1;	ExportPattern1 << "export" << DefaultMaybe << Whitespace << Symbol << OptionalWhitespace << ";";
-	std::string ReplacementPattern1("/*export$1 $2;*/");
-
-	//	get all the export symbols
-	Array<std::string> ExportSymbols;
-	std::string DefaultExportSymbol;
-	
-	auto ExtractSymbolsFromRegex = [&](std::stringstream& RegexPattern,int SymbolMatchIndex)
-	{
-		int DefaultMatchIndex = 1;
-		std::smatch SearchMatch;
-		std::string SearchingSource = Source;
-		auto PatternString = RegexPattern.str();
-		while ( std::regex_search( SearchingSource, SearchMatch, std::regex(PatternString) ) )
-		{
-			//auto IsDefault = SearchMatch[DefaultMatchIndex].str().length() > 0;
-			auto IsDefault = SearchMatch[DefaultMatchIndex].matched;
-			auto Symbol = SearchMatch[SymbolMatchIndex].str();
-			auto Matched = SearchMatch[0].matched;
-			//	gr: this is sometimes matching empty groups (per line?)
-			if ( Symbol.length() )
-				ExportSymbols.PushBack( Symbol );
-			if ( IsDefault )
-				DefaultExportSymbol = Symbol;
-				
-			SearchingSource = SearchMatch.suffix();
-		}
-	};
-	ExtractSymbolsFromRegex(ExportPattern0,3);
-	ExtractSymbolsFromRegex(ExportPattern1,2);
-	
-
-	std::stringstream NewExports;
-	if ( !ExportSymbols.IsEmpty() )
-	{
-		if ( DefaultExportSymbol.empty() )
-			throw Soy::AssertException("Missing default export");
-			
-		NewExports << "\n\n//	Generated exports\n";
-		
-		//	will generate bad syntax if no default symbol
-		if ( !DefaultExportSymbol.empty() )
-			NewExports << "exports.default = " << DefaultExportSymbol << ";\n";
-			
-		for ( auto e=0;	e<ExportSymbols.GetSize();	e++ )
-		{
-			NewExports << "exports." << ExportSymbols[e] << " = " << ExportSymbols[e] << ";\n";
-		}
-	}
-
-	//	now replace the matches (ie, strip out export & default)
-	Source = std::regex_replace(Source, std::regex(ExportPattern0.str()), ReplacementPattern0 );
-	Source = std::regex_replace(Source, std::regex(ExportPattern1.str()), ReplacementPattern1 );
-	
-	Source += NewExports.str();
-	
-	//std::Debug << "Replaced exports...\n\n" << Source << std::endl;
-	*/
-	return Source;
 }
 
 
