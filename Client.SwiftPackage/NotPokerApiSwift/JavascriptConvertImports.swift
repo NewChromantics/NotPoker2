@@ -27,17 +27,17 @@ import Foundation
 //	make a pattern for valid js symbols
 let Symbol = "([a-zA-Z0-9_]+)";
 let QuotedFilename = "('|\"|`)(.+\\.js)('|\"|`)";
-let QuotedFilenamePopEngineJs = "(\"|')(.+\\/PopEngine\\.js)('|\")";
+let Keyword = "(const|var|let|class|function|extends|async\\sfunction)";	//	prefixes which break up export, variable name etc
 let Whitespace = "\\s+";
 let OptionalWhitespace = "\\s*";
-let Keyword = "(const|var|let|class|function|extends|async\\sfunction)";	//	prefixes which break up export, variable name etc
+let Quote = "[\\\"'`]"
 
 //	must be other cases... like new line and symbol? maybe we can use ^symbol ?
 //	symbol( <-- function
 //	symbol= <-- var definition
 //	symbol; <-- var declaration
 //	symbol{ <-- class
-let VariableNameEnd = "(\\(|=|;|extends|\\{)";
+let VariableNameEnd = "\\(|=|$|\\n|;|extends|\\{";
 /*
 func ReplacementPattern2(std::stringstream& Output,std::smatch& Match) -> String
 {
@@ -120,10 +120,12 @@ std::string regex_replace_callback(const std::string& Input,std::regex Regex,std
 }
 */
 
-func regexp_matches(_ text:String!, _ pattern:String!, _ options:NSRegularExpression.Options=NSRegularExpression.Options.caseInsensitive) throws -> [NSTextCheckingResult]
+func regexp_matches(_ text:String!, _ pattern:String!, caseSensitive:Bool) throws -> [NSTextCheckingResult]
 {
 	do 
 	{
+		let options = caseSensitive ? NSRegularExpression.Options() : NSRegularExpression.Options.caseInsensitive
+		
 		let regex = try NSRegularExpression(pattern: pattern, options: options)
 		let nsString = text as NSString
 		let results = regex.matches(in: text,options: [], range: NSMakeRange(0, nsString.length))
@@ -183,11 +185,11 @@ func StringFromRange(_ Haystack:String, needle:NSRange) throws -> String
 
 typealias Replacer = (_ match:String, _ captures:[String]) throws -> String
 
-func string_replace_regex(_ str:String, pattern:String, options:NSRegularExpression.Options = NSRegularExpression.Options.caseInsensitive,replacer:Replacer) throws -> String
+func string_replace_regex(_ str:String, pattern:String, caseSensitive:Bool,replacer:Replacer) throws -> String
 {
 	var str = str
 	//	gr: need to process in reverse, as the original string needs to be modified backwards
-	let matches = try regexp_matches(str, pattern).reversed()
+	let matches = try regexp_matches(str, pattern, caseSensitive: caseSensitive).reversed()
 	matches.forEach()
 	{
 		match in
@@ -211,11 +213,12 @@ func string_replace_regex(_ str:String, pattern:String, options:NSRegularExpress
 }
 
 
-func string_regex_match_groups(_ str:String, pattern:String, options:NSRegularExpression.Options = NSRegularExpression.Options.caseInsensitive) throws -> [String]?
+func string_regex_match_groups(_ str:String, pattern:String, caseSensitive: Bool) throws -> [String]?
 {
 	var str = str
 	//	gr: need to process in reverse, as the original string needs to be modified backwards
-	let matches = try regexp_matches(str, pattern)
+	let matches = try regexp_matches(str, pattern, caseSensitive:caseSensitive )
+	
 	//	expecting only one match
 	if ( matches.count != 1 )
 	{
@@ -333,9 +336,7 @@ func ConvertImports(Source:String,importFunctionName:String,replacementNewLines:
 	//	import<symbols>from<script><instruction end>
 	if #available(macOS 13.0, *) 
 	{
-		let Whitespace = "\\s*";
-		let Quote = "[\\\"'`]"
-		let ImportPattern = "import(.+)from\(Whitespace)\(Quote){1}(.+)\(Quote){1}"
+		let ImportPattern = "import(.+)from\(OptionalWhitespace)\(Quote){1}(.+)\(Quote){1}"
 
 		//	to make some things simpler when importing the same file, but don't want conflicting symbols, add a counter
 		var ImportCounter = 0
@@ -378,7 +379,7 @@ func ConvertImports(Source:String,importFunctionName:String,replacementNewLines:
 			return ReplacementString
 		}
 		
-		var ES5Source = try! string_replace_regex( Source, pattern: ImportPattern, replacer: ImportReplacement )
+		var ES5Source = try! string_replace_regex( Source, pattern: ImportPattern, caseSensitive: true, replacer: ImportReplacement )
 		return ES5Source
 	}
 	else
@@ -424,19 +425,53 @@ func ConvertImports(Source:String,importFunctionName:String,replacementNewLines:
 //	export
 func ConvertExports(Source:String,exportSymbolName:String,replacementNewLines:Bool) -> String
 {
-	return Source
+	var ExportedSymbols:[ImportSymbol]=[]
 	
-	func ExportReplacement(match:String,captures:[String]) throws -> String
+	
+	func ExportReplacement0(match:String,captures:[String]) throws -> String
 	{
-		print("export match: "+match)
+		print(captures)
+		let Default = captures[0]
+		let Keyword = captures[1]
+		let Symbol = captures[2]
+		let VariableEnd = captures[3]
+		ExportedSymbols.append( ImportSymbol(importingSymbol: Symbol, variable: Symbol) )
+	
+		var Output = "/*\(match)*/\n"
+		Output += "\(Keyword) \(Symbol) \(VariableEnd)"
+		return Output
+	}
+	
+	func ExportReplacement1(match:String,captures:[String]) throws -> String
+	{
+		return match
 		return "/*\(match)*/"
 	}
 	
-	let Whitespace = "\\s*";
-	let ExportPattern = "[\\s|^]export\(Whitespace)(default)?\(Whitespace)"
-	var ES5Source = try! string_replace_regex( Source, pattern: ExportPattern, replacer: ExportReplacement )
+	//let Prefix = "[\\s|^]"
+	let Keyword = "default|const|var|let|class|function|extends|async";	//	prefixes which break up export, variable name etc
+	let KeywordOrWhitespace = "\(Keyword)|\\s";	//	prefixes which break up export, variable name etc
+	let Symbol = "([a-zA-Z0-9_]+)";
+
+	//	export DECL VAR=
+	let ExportPattern0 = "export\(Whitespace)(\(KeywordOrWhitespace))+(\(Symbol))\(OptionalWhitespace)(\(VariableNameEnd))"
+	//ExportPattern0 << "export" << DefaultMaybe << Whitespace << Keyword << Whitespace << Symbol << OptionalWhitespace << VariableNameEnd;
+
+	//	export Symbol;
+	let ExportPattern1 = "fdxgfgfdgfd"
+	//ExportPattern1 << "export" << DefaultMaybe << Whitespace << Symbol << OptionalWhitespace << ";";
 	
-	print(ES5Source)
+	var ES5Source = Source
+	ES5Source = try! string_replace_regex( ES5Source, pattern: ExportPattern0, caseSensitive: true, replacer: ExportReplacement0 )
+	ES5Source = try! string_replace_regex( ES5Source, pattern: ExportPattern1, caseSensitive: true, replacer: ExportReplacement1 )
+
+	//	now output all the symbols we found
+	ES5Source += "\n //\texports found\n"
+	for exportedSymbol in ExportedSymbols
+	{
+		ES5Source += "\(exportSymbolName).\(exportedSymbol.variable) = \(exportedSymbol.importingSymbol);"
+		ES5Source += "\n"
+	}
 	
 	return ES5Source
 	
