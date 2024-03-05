@@ -122,7 +122,7 @@ extension JSContext
 			let importPath = JavascriptModule.ResolveFilePath( filename:importFilename, parentFilename: context.filename )
 
 			//let expandedPath = NSString(string: importpath).expandingTildeInPath
-			print("Importing \(importPath) from \(context.filename)...")
+			//print("Importing \(importPath) from \(context.filename)...")
 			let expandedPath = Bundle.main.url(forResource: importPath, withExtension: "")
 
 			if ( expandedPath == nil )
@@ -148,10 +148,9 @@ extension JSContext
 				throw RuntimeError(NewContext.lastError!)
 			}
 			
-			print("Finished importing module \(importFilename).")
+			//print("Finished importing module \(importFilename).")
 			
 			return NewContextExports
-			//return nil
 		}
 		catch
 		{

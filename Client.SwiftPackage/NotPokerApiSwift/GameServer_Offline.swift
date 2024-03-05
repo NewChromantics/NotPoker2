@@ -1,6 +1,41 @@
 import SwiftUI
 import JavaScriptCore
+import Combine //	future
 
+
+class GrahamsPromise<T>
+{
+	var result : T? = nil
+	var error : Error? = nil
+	
+	
+	public func Wait() async throws -> T
+	{
+		//	spin! yuck!
+		while ( true )
+		{
+			await try! Task.sleep(nanoseconds: 1_000_000)
+			if ( result != nil )
+			{
+				return result!
+			}
+			if ( error != nil )
+			{
+				throw error!
+			}
+		}
+	}
+	
+	public func resolve(_ value:T)
+	{
+		result = value
+	}
+	
+	public func reject(_ exception:Error)
+	{
+		error = exception
+	}
+}
 
 
 //	the offline server runs a javascript game.... somehow!
@@ -12,6 +47,7 @@ public class GameServer_Offline : GameServer
 	//	server stuff
 	var Server_GameModule : JavascriptGame
 	var Server_GameInstance : String? = nil
+	var Server_GameStartPromise = GrahamsPromise<String>()
 	
 	//	client stuff
 
@@ -24,11 +60,13 @@ public class GameServer_Offline : GameServer
 		{
 			do
 			{
+				print("running new game server...")
 				await try! RunGameServer(gameType)
+				print("running new game server finished.")
 			}
 			catch
 			{
-				print("Game server error")
+				print("Game server error; \(error.localizedDescription)")
 			}
 		}
 	}
@@ -37,8 +75,18 @@ public class GameServer_Offline : GameServer
 	{
 		while ( true )
 		{
-			//	alloc a game
-			Server_GameInstance = await try! Server_GameModule.CallAsync("Allocate('\(gameType)')");
+			do
+			{
+				//	alloc a game
+				Server_GameInstance = await try! Server_GameModule.CallAsync("Allocate('\(gameType)')");
+				Server_GameStartPromise.resolve(Server_GameInstance!)
+			}
+			catch
+			{
+				Server_GameStartPromise.reject( error )
+				//	rethrow
+				throw error
+			}
 			print("Allocate() -> \(Server_GameInstance)")
 			/*
 			 function OnStateChanged()
@@ -74,11 +122,11 @@ public class GameServer_Offline : GameServer
 	
 	public func Join(Player:PlayerUid) async throws
 	{
+		//	wait for javascript to bootup
+		print("\(Player) joining game, waiting for bootup...")
+		await try! Server_GameStartPromise.Wait()
+		
 		print("\(Player) joining game...")
-		if ( Server_GameInstance == nil )
-		{
-			throw RuntimeError("No game running")
-		}
 
 		var AddResult = try await Server_GameModule.CallAsync("AddPlayer('\(Player.Uid)')")
 		print("AddPlayer() -> \(AddResult)")
