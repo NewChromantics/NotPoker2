@@ -122,7 +122,7 @@ extension JSContext
 			let importPath = JavascriptModule.ResolveFilePath( filename:importFilename, parentFilename: context.filename )
 
 			//let expandedPath = NSString(string: importpath).expandingTildeInPath
-			print("Importing \(importPath) from \(context.filename)")
+			print("Importing \(importPath) from \(context.filename)...")
 			let expandedPath = Bundle.main.url(forResource: importPath, withExtension: "")
 
 			if ( expandedPath == nil )
@@ -140,7 +140,7 @@ extension JSContext
 			NewContext.name = importPath
 
 			//let NewContext = JSContext()!
-			let NewContextExports = NewContext.InitModuleSupport()
+			let NewContextExports = try! NewContext.InitModuleSupport()
 			
 			NewContext.evaluateES6Script(fileContent)
 			if ( NewContext.exception != nil )
@@ -148,7 +148,7 @@ extension JSContext
 				throw RuntimeError(NewContext.lastError!)
 			}
 			
-			print("Imported module \(expandedPath!)")
+			print("Finished importing module \(importFilename).")
 			
 			return NewContextExports
 			//return nil
@@ -178,14 +178,25 @@ extension JSContext
 	
 
 	//	returns exports object, akin to the exported "module" in normal js
-	func InitModuleSupport() -> JSValue
+	func InitModuleSupport() throws -> JSValue
 	{
 		let global = context.globalObject!
 		
+		let ExistingExports = global.hasProperty(JavascriptModule.ModuleExportsSymbol as NSString)
+		if ( ExistingExports )
+		{
+			throw RuntimeError("Context already has global exports symbol \(JavascriptModule.ModuleExportsSymbol)")
+		}
 		
 		let NewContextExports = JSValue(newObjectIn: context)!
+		//global.defineProperty(JavascriptModule.ModuleExportsSymbol as NSString, descriptor: NewContextExports)
 		global.setObject( NewContextExports, forKeyedSubscript: JavascriptModule.ModuleExportsSymbol as NSString)
-		//global.setValue( NewContextExports, forProperty: ModuleExportsSymbol as NSString)
+		//global.setValue( NewContextExports, forProperty: JavascriptModule.ModuleExportsSymbol as NSString)
+		let NowHasExports = global.hasProperty(JavascriptModule.ModuleExportsSymbol as NSString)
+		if ( !NowHasExports )
+		{
+			throw RuntimeError("Context didn't register global exports symbol \(JavascriptModule.ModuleExportsSymbol)")
+		}
 
 		//	register global functors
 		global.setObject( JSContext.ImportModuleFunctor, forKeyedSubscript: JavascriptModule.ImportModuleFunctionSymbol as NSString)
@@ -194,6 +205,9 @@ extension JSContext
 		console?.setValue( JSContext.consolelogfunctor, forProperty: "log" )
 		global.setObject( console, forKeyedSubscript: "console" as NSString)
 
+		//	add setTimeout
+		JSTimer.registerInto(jsContext: context)
+		
 		
 		let ExceptionHandler = { [self] (ctx: JSContext!, value: JSValue!) in
 			
@@ -257,7 +271,7 @@ public class JavascriptModule
 		context = JSContext(jsGlobalContextRef: globalcontext)
 		context.name = moduleName
 				
-		context.InitModuleSupport()
+		try! context.InitModuleSupport()
 
 		//	load script - always returns undefined
 		let Result = context.evaluateES6Script(script)
