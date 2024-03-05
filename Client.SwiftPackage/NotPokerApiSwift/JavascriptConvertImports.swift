@@ -37,12 +37,17 @@ let Quote = "[\\\"'`]"
 //	but anything not-symbolly can be before
 let ExportPrefix = "^|[^\(SymbolChars)]"
 
+//	sometimes the symbol we're exporting is NOT the last symbol
+//	export default class MyExport extends NotMyExport
+let PostSymbolKeywords = ["extends"]
 
 //	must be other cases... like new line and symbol? maybe we can use ^symbol ?
 //	symbol( <-- function
 //	symbol= <-- var definition
 //	symbol; <-- var declaration
 //	symbol{ <-- class
+//	gr: extends in here doesn't work, because we grab all a-z symbols before it
+//		we could remove it here, now caught via PostSymbolKeywords
 let VariableNameEnd = "\\(|=|$|\\n|;|extends|\\{";
 
 
@@ -332,7 +337,14 @@ func ConvertExports(Source:String,exportSymbolName:String,replacementNewLines:Bo
 		let VariableEnd = captures[2]
 		
 		var Keywords = KeywordsAndSymbol.components(separatedBy: .whitespacesAndNewlines)
-		var Symbol = Keywords.popLast()!
+		
+		//	gr: there are some cases where a keyword comes AFTER the symbol
+		func IsPostSymbolKeyword(_ match:String) -> Bool
+		{
+			return PostSymbolKeywords.contains(match)
+		}
+		var PostSymbolIndex = Keywords.firstIndex(where: IsPostSymbolKeyword) ?? (Keywords.count)
+		var Symbol = Keywords[PostSymbolIndex-1]
 		
 		var HasDefault = Keywords.filter{ $0 == "default" }.count != 0
 		var KeywordsWithoutDefault = Keywords.filter{ $0 != "default" }
@@ -342,7 +354,7 @@ func ConvertExports(Source:String,exportSymbolName:String,replacementNewLines:Bo
 	
 		//var Output = "/*\(match)*/\n"
 		var Output = ""
-		Output += "\(Prefix) \(OutputKeywords) \(Symbol) \(VariableEnd)"
+		Output += "\(Prefix) \(OutputKeywords) \(VariableEnd)"
 		return Output
 	}
 	
