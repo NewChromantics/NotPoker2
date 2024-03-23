@@ -96,7 +96,7 @@ function InitGameMap(Size,SafePosition,MineCount)
 	//	filter out safe ones
 	let PossibleMinePositions = AllMinePositions.filter( p => !MatchInt2(p,SafePosition) );
 	if ( PossibleMinePositions.length == AllMinePositions.length )
-		throw `Didn't filter out safe position; ${SafePosition}`;
+		throw `Didn't filter out safe position; ${JSON.stringify(SafePosition)}`;
 	//	pop random positions
 	let MinePositions = [];
 	for ( let i=0;	i<MineCount;	i++ )
@@ -307,6 +307,10 @@ export default class TMinesweeperGame extends TGame
 		const Width = Size[0];
 		const Height = Size[1];
 		
+		//	allow string inputs
+		x = parseInt(x);
+		y = parseInt(y);
+
 		if ( x < 0 || x >= Width )	throw `x:${x} out of range 0...${Width}`;
 		if ( y < 0 || y >= Height )	throw `y:${y} out of range 0...${Height}`;
 		const xy = int2(x,y);
