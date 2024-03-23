@@ -173,15 +173,15 @@ func string_regex_match_groups(_ str:String, pattern:String, caseSensitive: Bool
 
 
 
-//import RegexBuilder
-@available(macOS 13.0, *)
 func FilenameToModuleSymbol(_ filename:String, uidSuffix:Int) -> String
 {
 	var Symbol = filename;
+	
 	//	replace non-symbol chars with underscores
-	//	todo: use regex
-	Symbol.replace("/",with:"_")
-	Symbol.replace(".",with:"_")
+	let CharacterFilter = "[^a-zA-Z0-9_]"
+	let regex = try! NSRegularExpression(pattern: CharacterFilter, options: .caseInsensitive)
+	Symbol = regex.stringByReplacingMatches( in: Symbol, options: [], range: NSRange(0..<Symbol.utf16.count), withTemplate: "_")
+
 	return "__Module_Exports_From_\(Symbol)_\(uidSuffix)"
 }
 
