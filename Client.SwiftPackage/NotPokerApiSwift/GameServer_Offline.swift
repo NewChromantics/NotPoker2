@@ -120,7 +120,11 @@ public class GameServer_Offline : GameServer
 	
 	public func SendActionReply(_ Reply: ActionReply) throws
 	{
-		throw RuntimeError("Todo: SendActionReply to offline game")
+		let ReplyJsonBytes = try! JSONEncoder().encode(Reply)
+		let ReplyJson = String(data: ReplyJsonBytes, encoding: .utf8)!
+		print("reply action json sending to js; \(ReplyJson) ")
+		
+		try Server_GameModule.Call("Client_SendActionReply(`\(ReplyJson)`)");
 	}
 	
 }
