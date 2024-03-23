@@ -207,13 +207,17 @@ func TrimString(_ str:String) -> String
 	return Trimmed
 }
 
-func ExtractSymbols(_ symbolsString:String,moduleExportsSymbol:String) throws -> [ImportSymbol]
+func ExtractSymbols(_ fullSymbolsString:String,moduleExportsSymbol:String) throws -> [ImportSymbol]
 {
+	//	gr: this wont work;
+	//	import x,{y,z} from 'xyz.js'
+	var symbolsString = fullSymbolsString.trim()
+	let InsideBraces = symbolsString.starts(with: "{")
+
 	func SplitSingleSymbol(origSymbolString:String) throws -> ImportSymbol
 	{
 		var symbolString = origSymbolString
 		symbolString = symbolString.trim()
-		let InsideBraces = symbolString.starts(with: "{")
 		//	if we're not importing symbols, then we are just importing the default
 		let ImportingSymbols = InsideBraces
 		symbolString = symbolString.trimmingCharacters(in: ["{","}"])
