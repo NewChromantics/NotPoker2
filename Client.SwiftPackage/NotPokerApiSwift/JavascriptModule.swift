@@ -4,20 +4,23 @@ import Combine
 
 //	set timeout via objc JSExport
 //	https://gist.github.com/heilerich/e23cfc6fe434919de972140147f83f6f
-@objc protocol JSTimerExport : JSExport {
+@objc protocol JSTimerExport : JSExport 
+{
 	func setTimeout(_ callback : JSValue,_ ms : Double) -> String
 	func clearTimeout(_ identifier: String)
 	func setInterval(_ callback : JSValue,_ ms : Double) -> String
 }
 
-@objc class JSTimer: NSObject, JSTimerExport {
+@objc class JSTimer: NSObject, JSTimerExport 
+{
 	static let shared = JSTimer()
 	
 	var timers = [String: Timer]()
 	
 	let queue = DispatchQueue(label: "jstimers")
 
-	static func registerInto(jsContext: JSContext) {
+	static func registerInto(jsContext: JSContext) 
+	{
 		jsContext.setObject(shared, forKeyedSubscript: "timerJS" as (NSCopying & NSObjectProtocol))
 		jsContext.evaluateScript(
 		"""
@@ -44,18 +47,28 @@ import Combine
 		}
 	}
 
-	func setInterval(_ callback: JSValue,_ ms: Double) -> String {
+	@MainActor
+	func setInterval(_ callback: JSValue,_ ms: Double) -> String
+	{
 		return createTimer(callback: callback, ms: ms, repeats: true)
 	}
 
-	func setTimeout(_ callback: JSValue, _ ms: Double) -> String {
+	@MainActor
+	func setTimeout(_ callback: JSValue, _ ms: Double) -> String
+	{
 		return createTimer(callback: callback, ms: ms , repeats: false)
 	}
 
+	@MainActor
 	func createTimer(callback: JSValue, ms: Double, repeats : Bool) -> String {
 		let timeInterval  = ms/1000.0
 		let uuid = UUID().uuidString
-		queue.sync {
+		
+		//	gr: the timer has to run on the main thread otherwise the callback doesn't come back
+		//		because... it's in swift? or because the javascript thread has no queue? not sure
+		//queue.sync
+		DispatchQueue.main.async
+		{
 			let timer = Timer.scheduledTimer(timeInterval: timeInterval,
 											 target: self,
 											 selector: #selector(self.callJsCallback),
