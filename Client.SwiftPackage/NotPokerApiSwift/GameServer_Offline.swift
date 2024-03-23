@@ -38,6 +38,7 @@ class GrahamsPromise<T>
 }
 
 
+
 //	the offline server runs a javascript game.... somehow!
 //		- javascriptcore in swift & run the js?
 //		- Popengine+jscore and use CAPI?
@@ -49,7 +50,6 @@ public class GameServer_Offline : GameServer
 	var Server_GameInstance : String? = nil
 	var Server_GameStartPromise = GrahamsPromise<String>()
 	
-	//	client stuff
 
 	//	startup the offline game so we know it's usable
 	public init(gameType:String) throws
@@ -88,29 +88,8 @@ public class GameServer_Offline : GameServer
 				throw error
 			}
 			print("Allocate() -> \(Server_GameInstance)")
-			/*
-			 function OnStateChanged()
-			 {
-			 const State = Game.GetPublicState();
-			 LocalServer.Server_BroadcastState.call( LocalServer, State );
-			 }
-			 
-			 const SendMoveAndWait = LocalServer.Server_SendMoveAndWait.bind(LocalServer);
-			 const OnAction = LocalServer.Server_OnAction.bind(LocalServer);
-			 
-			 const GameResult = await Game.RunGame( SendMoveAndWait, OnStateChanged, OnAction );
-			 */
-			
-			while ( true )
-			{
-				var GameState = try await Server_GameModule.CallAsync("WaitForNextGameState()")
-				print("WaitForNextGameState() -> \(GameState)")
 
-				//	if end of game, break
-				await Task.sleep(100)
-			}
-			
-			var GameResult = try await Server_GameModule.CallAsync("WaitForGameFinish()");
+			var GameResult = try await Server_GameModule.CallAsync("Server_RunGameServer()");
 			print("GameResult -> \(GameResult)")
 			
 			Server_GameInstance = nil
@@ -132,14 +111,11 @@ public class GameServer_Offline : GameServer
 		print("AddPlayer() -> \(AddResult)")
 	}
 	
-	public func WaitForNextState() async throws
+	public func WaitForNextState() async throws -> String
 	{
-		//	wait forever
-		while ( true )
-		{
-			try await Task.sleep(nanoseconds: 1000*1_000_000)	//	1_000_000ns = 1ms
-			print("Waiting for next state...")
-		}
+		let NewState = try await Server_GameModule.CallAsync("Client_WaitForNextState()")
+		print("Client_WaitForNextState() -> \(NewState)")
+		return NewState
 	}
 	
 	public func SendActionReply(_ Reply: ActionReply) throws

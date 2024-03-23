@@ -68,10 +68,11 @@ public protocol GameServer
 {
 	func Join(Player:PlayerUid) async throws
 	
-	func WaitForNextState() async throws
+	func WaitForNextState() async throws -> String
 	
 	func SendActionReply(_ Reply: ActionReply) throws
 }
+
 
 public class GameServer_Null : GameServer
 {
@@ -84,7 +85,7 @@ public class GameServer_Null : GameServer
 		throw RuntimeError("GameServer_Null::Join")
 	}
 	
-	public func WaitForNextState() async throws
+	public func WaitForNextState() async throws -> String
 	{
 		throw RuntimeError("GameServer_Null::WaitForNextState")
 	}

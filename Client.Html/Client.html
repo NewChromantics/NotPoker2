@@ -32,7 +32,7 @@
 		
 		<script type=module>
 			
-			import {PromiseQueue,CreatePromise} from '../Games/PromiseQueue.js'
+			import {PromiseQueue,CreatePromise,Yield} from '../Games/PromiseQueue.js'
 
 			//	server
 			import Minesweeper from '../Games/Minesweeper.js'
@@ -175,6 +175,7 @@
 					const SendMoveAndWait = LocalServer.Server_SendMoveAndWait.bind(LocalServer);
 					const OnAction = LocalServer.Server_OnAction.bind(LocalServer);
 					
+					await Game.WaitForEnoughPlayers();
 					const GameResult = await Game.RunGame( SendMoveAndWait, OnStateChanged, OnAction );
 					
 					OnLog(GameResult);
@@ -207,6 +208,8 @@
 				//	connect to the server
 				while ( true )
 				{
+					//	emulate delay before a player joins
+					await Yield(3*1000);
 					//	connect
 					await LocalServer.Client_Connect(PlayerUid);
 					
