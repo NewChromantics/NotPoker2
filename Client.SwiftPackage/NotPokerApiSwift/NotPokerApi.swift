@@ -211,7 +211,7 @@ public struct GameStateBase : Decodable
 {
 	public var GameType : String?
 	public var Error : String?
-	public var Actions = ActionList()
+	public var Actions : ActionList?
 	//var BadMode : String?
 	
 	public init()
