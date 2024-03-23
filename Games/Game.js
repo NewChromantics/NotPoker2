@@ -53,7 +53,7 @@ export default class TGame
 	{
 		this.OnDebug(`Adding player ${PlayerHash}`);
 		this.Players.push(PlayerHash);
-		return "Some player meta for game";
+		return `AddPlayer(${PlayerHash}): Some player meta for game`;
 	}
 	
 	DeletePlayer(PlayerHash)
@@ -64,7 +64,23 @@ export default class TGame
 		this.OnDebug(`Players are now; ${this.Players} after deleting ${PlayerHash}`);
 	}
 	
+	HasEnoughPlayers()
+	{
+		if ( this.Players.length == 0 )
+			return false;
+		return true;
+	}
 	
+	async WaitForEnoughPlayers()
+	{
+		//	todo: timeout
+		while ( !this.HasEnoughPlayers() )
+		{
+			//	todo: add some notification/promise for player changes
+			await Yield(1000);
+		}
+	}
+
 	//	this gets the next player, but does NOT move it along
 	//	in case move is not completed. EndPlayerTurn() moves it along
 	GetCurrentPlayer()

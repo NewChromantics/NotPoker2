@@ -93,14 +93,6 @@ class TMealDealGame extends TGame
 		this.State.PlayerHands[PlayerRef] = [];
 	}
 	
-	HasEnoughPlayers()
-	{
-		if ( this.Players.length == 0 )
-			return false;
-		return true;
-	}
-	
-	
 	async RunGame(SendMoveAndWait,OnStateChanged,OnAction)
 	{
 		Pop.Debug(`RunGame this=${JSON.stringify(this)}`);

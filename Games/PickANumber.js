@@ -30,13 +30,6 @@ export default class TPickANumberGame extends TGame
 			throw `Player limit reached`;
 	}
 	
-	HasEnoughPlayers()
-	{
-		if ( this.Players.length == 0 )
-			return false;
-		return true;
-	}
-	
 	async GetNextMove()
 	{
 		const NextPlayer = this.GetNextPlayer();

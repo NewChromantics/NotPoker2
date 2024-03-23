@@ -172,13 +172,6 @@ export default class TBoggleGame extends TGame
 	{
 	}
 	
-	HasEnoughPlayers()
-	{
-		if ( this.Players.length == 0 )
-			return false;
-		return true;
-	}
-	
 	MapIndexToCoord(Index)
 	{
 		const x = Index % this.State.MapWidth;

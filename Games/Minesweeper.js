@@ -300,13 +300,6 @@ export default class TMinesweeperGame extends TGame
 		//	no limit!
 	}
 	
-	HasEnoughPlayers()
-	{
-		if ( this.Players.length == 0 )
-			return false;
-		return true;
-	}
-	
 	//	return true if bomb clicked
 	HandleClick(x,y,Player)
 	{
