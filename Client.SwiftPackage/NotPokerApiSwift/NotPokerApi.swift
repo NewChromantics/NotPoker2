@@ -217,8 +217,17 @@ public struct ActionList : Decodable
 	
 }
 
+public protocol GameStateType : Decodable
+{
+	var GameType : String? { get }
+	var Error : String? { get }
+	var Actions : ActionList? { get }
 
-public struct GameStateBase : Decodable
+	init()				//	need a default
+	init(Error:String)	//	need a default
+}
+
+public struct GameStateBase : GameStateType
 {
 	public var GameType : String?
 	public var Error : String?
