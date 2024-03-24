@@ -95,10 +95,21 @@ public class ActionArgumentValue : /*Encodable,*/ Decodable, Equatable, Identifi
 	{
 		ValueAsString = ""
 	}
+	
+	public init(_ value:Int)
+	{
+		ValueAsString = "\(value)"
+	}
+		
+	public init(_ value:String)
+	{
+		ValueAsString = value
+	}
 		
 	required public init(from decoder: Decoder) throws
 	{
-		if let int = try? decoder.singleValueContainer().decode(Int.self) {
+		if let int = try? decoder.singleValueContainer().decode(Int.self) 
+		{
 			ValueAsString = "\(int)"
 			return
 		}
