@@ -237,12 +237,17 @@ export default class TMinesweeperGame extends TGame
 		
 		this.State = this.InitState();
 	}
+
+	GetMineCount()
+	{
+		return 25;
+	}
 	
 	InitState()
 	{
 		const State = {};
-		const Width = 10;
-		const Height = 10;
+		const Width = 16;
+		const Height = 16;
 		
 		//	the secret map just says where unrevealed mines (M) are
 		//	or the playerref of who revealed it.
@@ -269,11 +274,6 @@ export default class TMinesweeperGame extends TGame
 		return GetDoubleArraySize(this.State.Map);
 	}
 
-	GetMineCount()
-	{
-		return 10;
-	}
-	
 	GetPublicState()
 	{
 		const PrivateMap = this.State.Private.Map;
