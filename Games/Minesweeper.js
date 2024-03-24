@@ -176,9 +176,23 @@ function IsMine(Map,xy)
 	return Cell === Minesweeper_Mine;
 }
 
-//	probably should re-use clickcoord...
-function FloodReveal(Map,x,y)
+function GetMapCell(Map,xy)
 {
+	const Cell = Map[xy.x][xy.y];
+	return Cell;
+}
+
+//	probably should re-use clickcoord...
+function FloodReveal(Map,x,y,ShouldRevealMapCell)
+{
+	//	should throw?
+	const MapWidth = Map.length;
+	const MapHeight = Map[0].length;
+	if ( x < 0 || y < 0 )
+		return;
+	if ( x >= MapWidth || y >= MapHeight )
+		return;
+		
 	const Cell = Map[x][y];
 	//	already exposed
 	if ( Cell !== Minesweeper_Hidden )
@@ -186,29 +200,33 @@ function FloodReveal(Map,x,y)
 	
 	//	reveal it
 	Map[x][y] = Minesweeper_Revealed;
-	/*
-	 const SafeClick = async function(x,y)
-	 {
-	 try
-	 {
-	 await this.ClickCoord([x,y]);
-	 }
-	 catch(e)
-	 {
-	 }
-	 }.bind(this);
-	 
-	 //	click neighbours
-	 await SafeClick(x-1,y-1);
-	 await SafeClick(x+0,y-1);
-	 await SafeClick(x+1,y-1);
-	 await SafeClick(x-1,y+0);
-	 //SafeClick(x+0,y+0);
-	 await SafeClick(x+1,y+0);
-	 await SafeClick(x-1,y+1);
-	 await SafeClick(x+0,y+1);
-	 await SafeClick(x+1,y+1);
-	 */
+	
+	//	if this value is zero, reveal neighbours
+	if ( !ShouldRevealMapCell(x,y) )
+		return;
+	
+	//	reveal neighbours
+	function SafeClick(x,y)
+	{
+		if ( x < 0 || y < 0 )
+			return;
+		if ( x >= MapWidth || y >= MapHeight )
+			return;
+		//if ( !ShouldRevealMapCell(x,y) )
+		//	return;
+		FloodReveal( Map, x, y, ShouldRevealMapCell );
+	}
+
+	SafeClick(x-1,y-1);
+	SafeClick(x+0,y-1);
+	SafeClick(x+1,y-1);
+	SafeClick(x-1,y+0);
+	//SafeClick(x+0,y+0);
+	SafeClick(x+1,y+0);
+	SafeClick(x-1,y+1);
+	SafeClick(x+0,y+1);
+	SafeClick(x+1,y+1);
+
 }
 
 export default class TMinesweeperGame extends TGame
@@ -337,7 +355,12 @@ export default class TMinesweeperGame extends TGame
 		else
 		{
 			//	reveal via floodfill
-			FloodReveal(this.State.Map,x,y);
+			function IsZero(x,y)
+			{
+				let Value = GetMapCell(this.State.Private.Map, int2(x,y) );
+				return Value == 0;
+			}
+			FloodReveal( this.State.Map, x, y, IsZero.bind(this) );
 			return false;
 		}
 	}
