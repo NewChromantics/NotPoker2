@@ -33,6 +33,7 @@
 		<script type=module>
 			
 			import {PromiseQueue,CreatePromise,Yield} from '../Games/PromiseQueue.js'
+			import OfflineServer from '../Server.Js/GameServer_Offline.js'
 
 			//	server
 			import Minesweeper from '../Games/Minesweeper.js'
@@ -50,98 +51,10 @@
 					return `${PlayerName}_UID`;
 				}
 			}
-			
-			class LocalServerInterface
-			{
-				#Server_Game;	//	current game instance
-				#Server_PendingPlayerActions = {};	//	[PlayerUid] = Promise waiting to be fulfilled
-				
-				//	for multi local players, this needs to be a queue per client
-				#Client_StateChangedQueue = new PromiseQueue('Client_StateChangedQueue');
-				#Client_PlayerUid;
-				
-				async Client_WaitForNextState()
-				{
-					return await this.#Client_StateChangedQueue.WaitForNext();
-				}
-				
-				async Client_Connect(PlayerUid)
-				{
-					if ( !this.#Server_Game )
-						throw `No game running`;
-						
-					if ( !PlayerUid )
-						throw `Connect without player uid`;
-						
-					if ( this.#Client_PlayerUid )
-						throw `Local player is already registered (${this.#Client_PlayerUid})`;
-						
-					const Result = await this.#Server_Game.AddPlayer(PlayerUid);
-					
-					//	set only if successfully joined
-					this.#Client_PlayerUid = PlayerUid;
-					return Result;
-				}
-				
-				Client_SendActionReply(Action,ActionArguments)
-				{
-					const Reply = {};
-					Reply.Action = Action;
-					Reply.ActionArguments = ActionArguments;
-					
-					const PlayerUid = this.#Client_PlayerUid;
-					if ( !this.#Server_PendingPlayerActions.hasOwnProperty(PlayerUid) )
-					{
-						throw `There's no pending player action`;
-					}
-					this.#Server_PendingPlayerActions[PlayerUid].Resolve( Reply );
-				}
-				
-				
-				async Server_SetGame(Game)
-				{
-					this.#Server_Game = Game;
-				}
-				
-				
-				async Server_SendMoveAndWait(PlayerUid,Move)
-				{
-					//return await Room.SendToPlayerAndWaitForReply('Move', Player, Move );
-					if ( this.#Server_PendingPlayerActions.hasOwnProperty(PlayerUid) )
-					{
-						throw `There's already a pending promise for player ${PlayerUid} for new action`;
-					}
-					
-					const NewPromise = CreatePromise();
-					this.#Server_PendingPlayerActions[PlayerUid] = NewPromise;
-					
-					//	notify player they have something to do (+state?)
-					this.#Client_StateChangedQueue.Push(Move);
-					
-					//	wait for reply
-					const Reply = await NewPromise;
-					
-					//	clear promise
-					delete this.#Server_PendingPlayerActions[PlayerUid];
-					
-					return Reply;
-				}
-				
-				async Server_BroadcastState(State)
-				{
-					//Room.SendToAllPlayers('State',State);
-					this.#Client_StateChangedQueue.Push(State);
-				}
-				
-				async Server_OnAction(Action)
-				{
-					this.#Client_StateChangedQueue.Push(Action);
-				}
-			}
-
+		
 
 			const Lobby = new LobbyApi();
-			const LocalServerInstance = new LocalServerInterface();
+			const LocalServerInstance = new OfflineServer();
 			
 			
 			function OnServerLog(Message)

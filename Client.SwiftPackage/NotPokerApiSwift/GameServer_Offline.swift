@@ -54,7 +54,7 @@ public class GameServer_Offline : GameServer
 	//	startup the offline game so we know it's usable
 	public init(gameType:String) throws
 	{
-		Server_GameModule = try JavascriptGame("GameServer_Offline.js")
+		Server_GameModule = try JavascriptGame("Server.Js/GameServer_Offline.js")
 		
 		Task
 		{
@@ -94,7 +94,7 @@ public class GameServer_Offline : GameServer
 			
 			Server_GameInstance = nil
 			
-			await Task.sleep(1*1000)
+			//await Task.sleep(1*1000)
 		}
 	}
 			
