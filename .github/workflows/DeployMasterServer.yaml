@@ -11,7 +11,7 @@ env:
   DOCKERFILE_PATH: MasterServer
   GOOGLECLOUD_PROJECT_ID: notpoker
   GOOGLECLOUD_REGION: europe-west2
-  GOOGLECLOUD_ARTIFACTREGISTRY_LOCATION: europe-west2-docker.pkg.dev/notpoker/notpoker-masterserver/
+  GOOGLECLOUD_ARTIFACTREGISTRY_LOCATION: europe-west2-docker.pkg.dev/notpoker/notpoker-masterserver
   
 # https://medium.com/@sbkapelner/building-and-pushing-to-artifact-registry-with-github-actions-7027b3e443c1
 jobs:
