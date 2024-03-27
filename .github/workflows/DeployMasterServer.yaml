@@ -60,5 +60,5 @@ jobs:
 
       - name: Push image
         #if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        run: docker push ${{ env.GOOGLECLOUD_ARTIFACTREGISTRY_LOCATION }}:${{ steps.TagName.Tag }}
+        run: docker push ${{ env.GOOGLECLOUD_ARTIFACTREGISTRY_LOCATION }}:${{ steps.TagName.outputs.Tag }}
       
