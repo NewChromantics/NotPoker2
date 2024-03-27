@@ -1,0 +1,58 @@
+name: Deploy Master Server To GoogleCloud
+
+on:
+  push:
+    branches:
+      - main
+    tags:        
+      - '*'
+
+env:
+  DOCKERFILE_PATH: MasterServer
+  GOOGLECLOUD_PROJECT_ID: notpoker
+  GOOGLECLOUD_REGION: europe-west2
+  GOOGLECLOUD_ARTIFACTREGISTRY_LOCATION: europe-west2-docker.pkg.dev/notpoker/notpoker-masterserver/
+  
+# https://medium.com/@sbkapelner/building-and-pushing-to-artifact-registry-with-github-actions-7027b3e443c1
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Configure Node
+        uses: actions/setup-node@v1
+        with:
+          registry-url: https://npm.pkg.github.com/
+          node-version: 21
+
+      - name: Install Github Packages
+        run: npm ci
+
+      - name: Authorise GoogleCloud
+        id: googlecloudauth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: "${{ secrets.GOOGLECLOUD_SERVICE_ACCOUNT_KEY }}"
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Use gcloud CLI
+        run: gcloud info
+
+      - name: Authorise Docker to GoogleCloud
+        run: |-
+          gcloud auth configure-docker ${{ env.GOOGLECLOUD_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build image
+        run: docker build . --context ${{ env.DOCKERFILE_PATH }} --tag ${{ env.GOOGLECLOUD_ARTIFACTREGISTRY_LOCATION }}
+        #working-directory: WORKING_DIRECTORY
+
+      - name: Push image
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        run: docker push ${{ env.GOOGLECLOUD_ARTIFACTREGISTRY_LOCATION }}
+      
