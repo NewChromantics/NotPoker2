@@ -55,7 +55,7 @@ jobs:
           echo "Tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT" 
 
       - name: Build image
-        run: docker build ./${{ env.DOCKERFILE_PATH }} --tag ${{ env.GOOGLECLOUD_ARTIFACTREGISTRY_LOCATION }}:${{ steps.TagName.Tag }}
+        run: docker build ./${{ env.DOCKERFILE_PATH }} --tag ${{ env.GOOGLECLOUD_ARTIFACTREGISTRY_LOCATION }}:${{ steps.TagName.outputs.Tag }}
         #working-directory: WORKING_DIRECTORY
 
       - name: Push image
