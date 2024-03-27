@@ -15,7 +15,7 @@ env:
   
 # https://medium.com/@sbkapelner/building-and-pushing-to-artifact-registry-with-github-actions-7027b3e443c1
 jobs:
-  publish:
+  BuildAndDeploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
@@ -60,5 +60,5 @@ jobs:
 
       - name: Push image
         #if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        run: docker push ${{ env.GOOGLECLOUD_ARTIFACTREGISTRY_LOCATION }}
+        run: docker push ${{ env.GOOGLECLOUD_ARTIFACTREGISTRY_LOCATION }}:${{ steps.TagName.Tag }}
       
