@@ -46,14 +46,19 @@ jobs:
         run: gcloud info
 
       - name: Authorise Docker to GoogleCloud
-        run: |-
+        run: |
           gcloud auth configure-docker ${{ env.GOOGLECLOUD_REGION }}-docker.pkg.dev --quiet
 
+      - name: Get Tag Name
+        id: TagName
+        run: |
+          echo "Tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT" 
+
       - name: Build image
-        run: docker build ./${{ env.DOCKERFILE_PATH }} --tag ${{ env.GOOGLECLOUD_ARTIFACTREGISTRY_LOCATION }}
+        run: docker build ./${{ env.DOCKERFILE_PATH }} --tag ${{ env.GOOGLECLOUD_ARTIFACTREGISTRY_LOCATION }}:${{ steps.TagName.Tag }}
         #working-directory: WORKING_DIRECTORY
 
       - name: Push image
-        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        #if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: docker push ${{ env.GOOGLECLOUD_ARTIFACTREGISTRY_LOCATION }}
       
