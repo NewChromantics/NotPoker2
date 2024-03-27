@@ -30,6 +30,7 @@ jobs:
           node-version: 21
 
       - name: Install Github Packages
+        working-directory: ${{ env.DOCKERFILE_PATH }}
         run: npm ci
 
       - name: Authorise GoogleCloud
