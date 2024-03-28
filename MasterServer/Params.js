@@ -68,7 +68,10 @@ export function GetInt(Key,DefaultValueIfMissing)
 {
 	let Value = GetParam( Key, DefaultValueIfMissing );
 	
-	if ( !Number.isInteger(Value) )
+	const ValueNumber = Number(Value);	//	parseInt will turn "5aaaa" into 5
+
+	//	gr: this catches NaN
+	if ( !Number.isInteger(ValueNumber) )
 		throw `${Value}(${Key}) needs to be integer`;
 	
 	return Value;
