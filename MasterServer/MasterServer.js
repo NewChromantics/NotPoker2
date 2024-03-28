@@ -12,7 +12,7 @@ import * as Params from './Params.js'
 const CorsOrigin = Params.GetParam('CorsOrigin','*' );
 const ErrorStatusCode = Params.GetInt('ErrorStatusCode',400);
 const StaticFilesPath = Params.GetParam('StaticFilesPath','./');
-const ListenPort = Params.GetInt('ListenPort',8888);
+const ListenPort = Params.GetInt('PORT',8888);	//	$PORT -> env PORT on google cloud
 try
 {
 	const AllEnv = JSON.stringify(process.env,null,'\t');
