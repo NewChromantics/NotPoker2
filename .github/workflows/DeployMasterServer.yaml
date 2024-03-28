@@ -9,9 +9,10 @@ on:
 
 env:
   DOCKERFILE_PATH: MasterServer
-  GOOGLECLOUD_PROJECT_ID: notpoker
   GOOGLECLOUD_REGION: europe-west2
-  GOOGLECLOUD_ARTIFACTREGISTRY_LOCATION: europe-west2-docker.pkg.dev/notpoker/notpoker-masterserver
+  GOOGLECLOUD_PROJECT: notpoker # your project
+  GOOGLECLOUD_REPOSITORY: notpoker-masterserver # repository [of images] under your project in Artifact Registry
+  GOOGLECLOUD_IMAGENAME: masterserver # image name inside AR repository (+tag)
   
 # https://medium.com/@sbkapelner/building-and-pushing-to-artifact-registry-with-github-actions-7027b3e443c1
 jobs:
@@ -49,16 +50,23 @@ jobs:
         run: |
           gcloud auth configure-docker ${{ env.GOOGLECLOUD_REGION }}-docker.pkg.dev --quiet
 
-      - name: Get Tag Name
-        id: TagName
+      # currently use main, or tag, but seperate step as this may be more complicated later
+      - name: Generate Tag Name
+        id: GetTagName
         run: |
-          echo "Tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT" 
+          echo "TagName=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      # generate the final tag for docker->artifact registry
+      - name: Generate Artifact Registry Location
+        id: GetImageTag
+        run: |
+          echo "ImageTag=${{ env.GOOGLECLOUD_REGION }}-docker.pkg.dev/${{ env.GOOGLECLOUD_PROJECT }}/${{ env.GOOGLECLOUD_REPOSITORY }}/${{ env.GOOGLECLOUD_IMAGENAME}}:${{ steps.GetTagName.outputs.TagName }}" >> "$GITHUB_OUTPUT"
 
       - name: Build image
-        run: docker build ./${{ env.DOCKERFILE_PATH }} --tag ${{ env.GOOGLECLOUD_ARTIFACTREGISTRY_LOCATION }}:${{ steps.TagName.outputs.Tag }}
+        run: docker build ./${{ env.DOCKERFILE_PATH }} --tag ${{ steps.GetImageTag.outputs.ImageTag }}
         #working-directory: WORKING_DIRECTORY
 
       - name: Push image
         #if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        run: docker push ${{ env.GOOGLECLOUD_ARTIFACTREGISTRY_LOCATION }}:${{ steps.TagName.outputs.Tag }}
+        run: docker push ${{ steps.GetImageTag.outputs.ImageTag }}
       
